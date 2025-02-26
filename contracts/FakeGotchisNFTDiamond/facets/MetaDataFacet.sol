@@ -116,6 +116,37 @@ contract MetadataFacet is Modifiers {
         emit MetadataActionLog(_metadataId, s.metadata[_metadataId]);
     }
 
+    function _writeMetadata(uint256 _metadataId, Metadata memory _mData) internal {
+        // write to storage directly
+        s.metadata[_metadataId] = Metadata({
+            name: _mData.name,
+            description: _mData.description,
+            externalLink: _mData.externalLink,
+            editions: _mData.editions,
+            publisher: _mData.publisher,
+            publisherName: _mData.publisherName,
+            artist: _mData.artist,
+            artistName: _mData.artistName,
+            royalty: _mData.royalty,
+            fileHash: _mData.fileHash,
+            fileType: _mData.fileType,
+            thumbnailHash: _mData.thumbnailHash,
+            thumbnailType: _mData.thumbnailType,
+            minted: _mData.minted,
+            createdAt: _mData.createdAt,
+            status: _mData.status,
+            flagCount: _mData.flagCount,
+            likeCount: _mData.likeCount
+        });
+        s.ownerMetadataIdIndexes[_mData.publisher][_metadataId] = s.ownerMetadataIds[_mData.publisher].length;
+        s.ownerMetadataIds[_mData.publisher].push(_metadataId);
+        s.metadataIds.push(_metadataId);
+        s.metadataOwner[_metadataId] = _mData.publisher;
+
+        // emit event with metadata
+        emit MetadataActionLog(_metadataId, s.metadata[_metadataId]);
+    }
+
     function declineMetadata(uint256 _id, bool isBadFaith) external onlyOwner {
         validateMetadata(_id);
         require(s.metadata[_id].status != METADATA_STATUS_APPROVED, "Metadata: Already approved");
@@ -162,6 +193,31 @@ contract MetadataFacet is Modifiers {
 
         LibERC721.safeBatchMint(mData.publisher, _id, mData.editions);
         s.metadata[_id].minted = true;
+    }
+
+    struct MintBatchInput {
+        address ownerAddress;
+        FakeGotchiNFTBalances[] tokenBalances;
+    }
+
+    struct FakeGotchiNFTBalances {
+        uint256 tokenId;
+        uint256 balance;
+    }
+
+    function mintBatch(MintBatchInput[] calldata _mintData) external onlyOwner {
+        for (uint256 i; i < _mintData.length; i++) {
+            for (uint256 j; j < _mintData[i].tokenBalances.length; j++) {
+                LibERC721.safeBatchMint(_mintData[i].ownerAddress, _mintData[i].tokenBalances[j].tokenId, _mintData[i].tokenBalances[j].balance);
+            }
+        }
+    }
+
+    function batchWriteMetadata(uint256[] calldata _ids, Metadata[] calldata _mData) external onlyOwner {
+        require(_ids.length == _mData.length, "Metadata: Lengths of ids and metadata must be equal");
+        for (uint256 i; i < _ids.length; i++) {
+            _writeMetadata(_ids[i], _mData[i]);
+        }
     }
 
     function verifyMetadata(MetadataInput memory mData) internal pure {

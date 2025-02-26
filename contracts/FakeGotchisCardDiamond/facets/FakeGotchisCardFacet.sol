@@ -36,6 +36,23 @@ contract FakeGotchisCardFacet is Modifiers {
         emit NewSeriesStarted(newCardId, _amount);
     }
 
+    struct TokenBalance {
+        uint256 tokenId;
+        uint256 balance;
+    }
+
+    struct MintData {
+        address ownerAddress;
+        TokenBalance tokenBalances;
+    }
+
+    function massMint(MintData[] calldata _mintData) external onlyOwner {
+        require(s.nextCardId == 0, "can only mass-mint with first series");
+        for (uint256 i; i < _mintData.length; i++) {
+            LibERC1155._mint(_mintData[i].ownerAddress, 0, _mintData[i].tokenBalances.balance, new bytes(0));
+        }
+    }
+
     /**
      * @notice Query if an address is an authorized operator for another address
      * @param _owner The address that owns the NFTs
