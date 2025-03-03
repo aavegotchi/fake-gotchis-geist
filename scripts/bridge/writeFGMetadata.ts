@@ -52,8 +52,9 @@ async function writeBatch(
   let retries = 0;
   while (retries <= maxRetries) {
     try {
-      // const tx = await metadataFacet.batchWriteMetadata(batchIds, batch);
-      // await tx.wait();
+      // Uncomment to send txn
+      const tx = await metadataFacet.batchWriteMetadata(batchIds, batch);
+      await tx.wait();
       console.log(`Successfully wrote batch ${batchNumber}`);
       return true;
     } catch (error) {
@@ -104,7 +105,6 @@ async function main() {
   const metadata: GotchiNFTMetadataIds = JSON.parse(
     fs.readFileSync(METADATA_FILE, "utf8")
   );
-  console.log(`Writing ${Object.keys(metadata).length} metadata onchain`);
 
   const allMetadataIds: string[] = Object.keys(metadata);
   const allMetadata: GotchiNFTMetadata[] = allMetadataIds.map(
@@ -113,6 +113,18 @@ async function main() {
 
   const BATCH_SIZE = 20;
   const totalBatches = Math.ceil(allMetadata.length / BATCH_SIZE);
+
+  // Calculate remaining metadata
+  const remainingMetadata = allMetadataIds.filter((_, index) => {
+    const batchNumber = Math.floor(index / BATCH_SIZE);
+    return !progress.completedBatches.includes(batchNumber);
+  });
+
+  console.log(
+    `Writing ${remainingMetadata.length} remaining metadata onchain (${
+      allMetadata.length - remainingMetadata.length
+    }/${allMetadata.length} already processed)`
+  );
 
   const metadataFacet = await ethers.getContractAt(
     "MetadataFacet",

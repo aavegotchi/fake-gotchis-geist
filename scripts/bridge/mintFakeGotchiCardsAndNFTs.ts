@@ -57,7 +57,8 @@ async function mintBatchWithRetry(
   while (retries <= MAX_RETRIES) {
     try {
       console.log(`Minting ${type} batch ${batchNumber} of ${totalBatches}`);
-      await mintFunction(batch);
+      //uncomment to send txn
+      // await mintFunction(batch);
       console.log(`Successfully minted ${type} batch ${batchNumber}`);
       return true;
     } catch (error) {
@@ -72,7 +73,6 @@ async function mintBatchWithRetry(
       console.warn(
         `Attempt ${retries}/${MAX_RETRIES} failed for ${type} batch ${batchNumber}. Retrying...`
       );
-      // Exponential backoff
       await new Promise((resolve) =>
         setTimeout(resolve, 1000 * Math.pow(2, retries))
       );
@@ -131,10 +131,9 @@ async function processHolders(
       .slice(start, end)
       .map((item) => {
         if (type === "cards") {
-          const balance = item.tokenBalances[0];
-          item.tokenBalances = {
-            tokenId: balance.tokenId,
-            balance: balance.balance,
+          return {
+            ownerAddress: item.ownerAddress,
+            tokenBalances: item.tokenBalances[0],
           };
         }
         return item;
@@ -179,7 +178,6 @@ async function main() {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
 
-  // Initialize or load progress tracker
   let progress: MintingProgress = {
     cards: { completedBatches: [], lastProcessedIndex: 0 },
     nfts: { completedBatches: [], lastProcessedIndex: 0 },
@@ -219,10 +217,10 @@ async function main() {
 
   if (cardsComplete && nftsComplete) {
     console.log("All minting completed successfully!");
-    if (fs.existsSync(PROGRESS_FILE)) {
-      fs.unlinkSync(PROGRESS_FILE);
-      console.log("Cleaned up progress tracking file.");
-    }
+    // if (fs.existsSync(PROGRESS_FILE)) {
+    //   fs.unlinkSync(PROGRESS_FILE);
+    //   console.log("Cleaned up progress tracking file.");
+    // }
   } else {
     console.log(
       "Process incomplete. Run the script again to continue from where it left off."
