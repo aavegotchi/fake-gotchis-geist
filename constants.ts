@@ -8,6 +8,7 @@ export interface Constants {
   ghstAddress: string;
   fakeGotchiCards: string;
   fakeGotchiArt: string;
+  safeProxyFactory?: string;
 }
 
 interface NetworkToConstants {
@@ -38,6 +39,7 @@ export const maticVars: Constants = {
   ghstAddress: "0x385eeac5cb85a38a9a07a70c73e0a3271cfb54a7",
   fakeGotchiCards: "0x9f6BcC63e86D44c46e85564E9383E650dc0b56D7",
   fakeGotchiArt: "0xA4E3513c98b30d4D7cc578d2C328Bd550725D1D0",
+  safeProxyFactory: "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2",
 };
 
 const mumbaiVars: Constants = {
@@ -50,10 +52,34 @@ const mumbaiVars: Constants = {
   fakeGotchiArt: "0x330088c3372f4F78cF023DF16E1e1564109191dc",
 };
 
+export const baseVars: Constants = {
+  aavegotchiDiamond: "0x74e2051A9Cd994F83f2d789448dCa4a3e879964c", //simple placeholder for testing
+  realmDiamond: "",
+  installationDiamond: "",
+  tileDiamond: "",
+  safeProxyFactory: "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2",
+  ghstAddress: "",
+  fakeGotchiCards: "",
+  fakeGotchiArt: "",
+};
+
+export const baseSepoliaVars: Constants = {
+  aavegotchiDiamond: "", //simple placeholder for testing
+  realmDiamond: "",
+  installationDiamond: "",
+  tileDiamond: "",
+  ghstAddress: "",
+  fakeGotchiCards: "",
+  fakeGotchiArt: "",
+  safeProxyFactory: "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2",
+};
+
 const networkToVars: NetworkToConstants = {
   137: maticVars,
   80001: mumbaiVars,
   100: maticVars, //update
+  84532: baseSepoliaVars,
+  8453: baseVars,
 };
 
 export const gasPrice = 75000000000;

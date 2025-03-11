@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { varsForNetwork } from "../../constants";
 import { ethers } from "hardhat";
+import { DATA_DIR, MINTED_DIR, FGNFTPATH } from "./bridgeConstants";
 
 interface TokenBalance {
   tokenId: string;
@@ -26,10 +27,9 @@ interface CardHolderBalances {
   [ownerAddress: string]: OwnerBalancesCard;
 }
 
-export const DATA_DIR = `${__dirname}/data`;
-const MINTED_DIR = `${__dirname}/minted`;
-const CARDS_FILE = `${DATA_DIR}/fakeGotchiCardHolders.json`;
-const NFTS_FILE = `${DATA_DIR}/fakeGotchisNFTHolders.json`;
+export const FGCARD_PATH = path.join(DATA_DIR, "FGCard");
+const CARDS_FILE = `${FGCARD_PATH}/fakeGotchiCardHolders.json`;
+const NFTS_FILE = `${FGNFTPATH}/fakeGotchisNFTHolders.json`;
 const PROGRESS_FILE = path.join(MINTED_DIR, "minting_progress.json");
 
 const BATCH_SIZE = 10;
@@ -217,10 +217,6 @@ async function main() {
 
   if (cardsComplete && nftsComplete) {
     console.log("All minting completed successfully!");
-    // if (fs.existsSync(PROGRESS_FILE)) {
-    //   fs.unlinkSync(PROGRESS_FILE);
-    //   console.log("Cleaned up progress tracking file.");
-    // }
   } else {
     console.log(
       "Process incomplete. Run the script again to continue from where it left off."

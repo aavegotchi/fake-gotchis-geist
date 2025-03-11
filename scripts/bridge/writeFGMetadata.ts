@@ -1,8 +1,8 @@
 import fs from "fs";
 import path from "path";
-import { DATA_DIR } from "./mintFakeGotchiCardsAndNFTs";
 import { varsForNetwork } from "../../constants";
 import { ethers } from "hardhat";
+import { DATA_DIR, FGNFTPATH } from "./bridgeConstants";
 
 interface GotchiNFTMetadata {
   publisher: string;
@@ -80,8 +80,9 @@ async function writeBatch(
 
 async function main() {
   const c = await varsForNetwork(ethers);
-  const METADATA_FILE = `${DATA_DIR}/gotchiNFTMetadata.json`;
-  const PROGRESS_FILE = path.join(DATA_DIR, "metadata_progress.json");
+
+  const METADATA_FILE = `${FGNFTPATH}/gotchiNFTMetadata.json`;
+  const PROGRESS_FILE = path.join(FGNFTPATH, "metadata_progress.json");
 
   // Initialize or load progress tracker
   let progress: ProgressTracker = {
@@ -167,11 +168,6 @@ async function main() {
 
   if (progress.lastProcessedIndex >= allMetadata.length) {
     console.log("All metadata successfully written onchain!");
-    // Optionally clean up the progress file
-    // if (fs.existsSync(PROGRESS_FILE)) {
-    //   fs.unlinkSync(PROGRESS_FILE);
-    //   console.log("Cleaned up progress tracking file.");
-    // }
   } else {
     console.log(
       `Process incomplete. Processed ${progress.completedBatches.length} of ${totalBatches} batches.`
