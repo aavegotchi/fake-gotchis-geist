@@ -1,3 +1,4 @@
+import { ethers } from "ethers";
 import { HardhatEthersHelpers } from "hardhat/types";
 
 export interface Constants {
@@ -122,3 +123,21 @@ export const PERMIT_TYPES = {
     { name: "deadline", type: "uint256" },
   ],
 };
+
+export function baseSepoliaProvider() {
+  const url = process.env.BASE_SEPOLIA_RPC_URL;
+  if (!url) {
+    throw new Error("BASE_SEPOLIA_RPC_URL not found in environment variables");
+  }
+  console.log("Using Base Sepolia URL:", url);
+  return new ethers.providers.JsonRpcProvider(url);
+}
+
+export function baseProvider() {
+  const url = process.env.BASE_RPC_URL;
+  if (!url) {
+    throw new Error("BASE_RPC_URL not found in environment variables");
+  }
+  console.log("Using Base URL:", url);
+  return new ethers.providers.JsonRpcProvider(url);
+}

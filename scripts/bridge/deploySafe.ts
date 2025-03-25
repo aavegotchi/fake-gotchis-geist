@@ -4,23 +4,33 @@ import { ethers as eh } from "hardhat";
 import fs from "fs";
 import axios from "axios";
 import * as dotenv from "dotenv";
-import { varsForNetwork } from "../../constants";
-import { MINTED_DIR } from "./bridgeConstants";
+import {
+  baseProvider,
+  baseSepoliaProvider,
+  varsForNetwork,
+} from "../../constants";
 
 // Use absolute path resolution
-dotenv.config({ path: path.resolve(__dirname, "../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
-interface SafeDetails {
-  safeAddress: string;
-  tokenBalances: {
-    tokenId: string;
-    balance: string;
-  }[];
+export const GNOSIS_PATH = `${__dirname}/minted/gnosis`;
+const FAILED_SAFES_PATH = `${GNOSIS_PATH}/failedSafes.json`;
+const DEPLOYED_SAFES_PATH = `${GNOSIS_PATH}/deployedSafes.json`;
+const toBase = false;
+
+// Create gnosis directory if it doesn't exist
+if (!fs.existsSync(GNOSIS_PATH)) {
+  fs.mkdirSync(GNOSIS_PATH, { recursive: true });
 }
 
-// Define paths
-const FAILED_SAFES_PATH = `${MINTED_DIR}/failedSafes.json`;
-const DEPLOYED_SAFES_PATH = `${MINTED_DIR}/deployedSafes.json`;
+// Initialize empty files if they don't exist
+if (!fs.existsSync(FAILED_SAFES_PATH)) {
+  fs.writeFileSync(FAILED_SAFES_PATH, JSON.stringify([], null, 2));
+}
+
+if (!fs.existsSync(DEPLOYED_SAFES_PATH)) {
+  fs.writeFileSync(DEPLOYED_SAFES_PATH, JSON.stringify([], null, 2));
+}
 
 function recordFailedSafe(safeAddress: string) {
   const failedSafes: string[] = fs.existsSync(FAILED_SAFES_PATH)
@@ -85,12 +95,16 @@ export async function deploySafe(safeAddress: string): Promise<string | null> {
     const networkVars = await varsForNetwork(eh);
     const SAFE_PROXY_FACTORY = networkVars.safeProxyFactory;
 
-    const privateKey = process.env.SECRET as string;
+    const privateKey = process.env.SECRET;
+    if (!privateKey) {
+      throw new Error("Private key not found in environment variables");
+    }
 
-    const provider = await eh.provider;
-    const wallet = new ethers.Wallet(privateKey, provider);
+    const provider = toBase ? baseProvider() : baseSepoliaProvider();
+    const wallet = new ethers.Wallet(privateKey, await provider);
 
     // Check if safe already exists
+
     const code = await provider.getCode(safeAddress);
     if (code !== "0x") {
       console.log(
@@ -108,8 +122,8 @@ export async function deploySafe(safeAddress: string): Promise<string | null> {
     const tx = await wallet.sendTransaction({
       to: SAFE_PROXY_FACTORY,
       data: inputData,
-      gasPrice: ethers.utils.parseUnits("0.001", "gwei"),
-      gasLimit: 1500000,
+      gasPrice: ethers.utils.parseUnits("0.01", "gwei"),
+      // gasLimit: 1500000,
     });
 
     const receipt = await tx.wait();
