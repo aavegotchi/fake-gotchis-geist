@@ -2,11 +2,7 @@
 import { Signer } from "@ethersproject/abstract-signer";
 import { ethers } from "hardhat";
 import { DiamondCutFacet, OwnershipFacet } from "../../typechain-types";
-import {
-  gasPrice,
-  ghstAddress,
-  maticAavegotchiDiamondAddress,
-} from "../helperFunctions";
+import { addresses, verifyContract } from "../helperFunctions";
 
 const { getSelectors, FacetCutAction } = require("../libraries/diamond");
 
@@ -20,31 +16,42 @@ export async function deployNftDiamond(cardAddress: string) {
   const deployer = accounts[0];
   const deployerAddress = await deployer.getAddress();
   console.log("Deployer:", deployerAddress);
+  const { aavegotchiDiamond, ghstAddress } = addresses();
+  console.log("Aavegotchi Diamond Address:", aavegotchiDiamond);
 
   // deploy DiamondCutFacet
   const DiamondCutFacet = await ethers.getContractFactory("DiamondCutFacet");
-  const diamondCutFacet = await DiamondCutFacet.deploy({
-    gasPrice: gasPrice,
-  });
+  const diamondCutFacet = await DiamondCutFacet.deploy({});
   await diamondCutFacet.deployed();
   console.log("DiamondCutFacet deployed:", diamondCutFacet.address);
-
+  await verifyContract(diamondCutFacet.address, false);
   // deploy Diamond
   const Diamond = await ethers.getContractFactory("FakeGotchisNFTDiamond");
   const diamond = await Diamond.deploy(
     deployerAddress,
     diamondCutFacet.address,
     ghstAddress,
-    maticAavegotchiDiamondAddress,
-    cardAddress,
-    { gasPrice: gasPrice }
+    aavegotchiDiamond,
+    cardAddress
   );
   await diamond.deployed();
   console.log("FAKE Gotchis NFT Diamond deployed:", diamond.address);
+  await verifyContract(
+    diamond.address,
+    true,
+    [
+      deployerAddress,
+      diamondCutFacet.address,
+      ghstAddress,
+      aavegotchiDiamond,
+      cardAddress,
+    ],
+    "contracts/FakeGotchisNFTDiamond/FakeGotchisNFTDiamond.sol:FakeGotchisNFTDiamond"
+  );
 
   // deploy DiamondInit
   const DiamondInit = await ethers.getContractFactory("DiamondInit");
-  const diamondInit = await DiamondInit.deploy({ gasPrice: gasPrice });
+  const diamondInit = await DiamondInit.deploy();
   await diamondInit.deployed();
   console.log("DiamondInit deployed:", diamondInit.address);
 
@@ -59,11 +66,10 @@ export async function deployNftDiamond(cardAddress: string) {
   const cut = [];
   for (const FacetName of FacetNames) {
     const Facet = await ethers.getContractFactory(FacetName);
-    const facet = await Facet.deploy({
-      gasPrice: gasPrice,
-    });
+    const facet = await Facet.deploy({});
     await facet.deployed();
     console.log(`${FacetName} deployed: ${facet.address}`);
+    await verifyContract(facet.address, false);
     cut.push({
       facetAddress: facet.address,
       action: FacetCutAction.Add,
@@ -78,8 +84,7 @@ export async function deployNftDiamond(cardAddress: string) {
   const tx = await diamondCut.diamondCut(
     cut,
     diamondInit.address,
-    functionCall,
-    { gasPrice: gasPrice }
+    functionCall
   );
   console.log("FAKE Gotchis NFT Diamond cut tx: ", tx.hash);
   const receipt = await tx.wait();
@@ -87,6 +92,9 @@ export async function deployNftDiamond(cardAddress: string) {
     throw Error(`Diamond upgrade failed: ${tx.hash}`);
   }
   console.log("Completed diamond cut");
+
+  //wait for 3 seconds
+  await new Promise((resolve) => setTimeout(resolve, 3000));
 
   const ownershipFacet = await ethers.getContractAt(
     "OwnershipFacet",

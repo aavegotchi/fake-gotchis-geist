@@ -24,7 +24,8 @@ export interface Domain {
 }
 
 function varsByChainId(chainId: number) {
-  if ([137, 80001].includes(chainId)) return networkToVars[chainId];
+  if ([137, 80001, 84532, 8453, 31337].includes(chainId))
+    return networkToVars[chainId];
   else return networkToVars[137];
 }
 
@@ -65,14 +66,25 @@ export const baseVars: Constants = {
 };
 
 export const baseSepoliaVars: Constants = {
-  aavegotchiDiamond: "", //simple placeholder for testing
+  aavegotchiDiamond: "0x86e527A5863975d0141514D20248aD17B6BF92D0",
   realmDiamond: "",
   installationDiamond: "",
   tileDiamond: "",
-  ghstAddress: "",
-  fakeGotchiCards: "",
-  fakeGotchiArt: "",
+  ghstAddress: "0xe97f36a00058aa7dfc4e85d23532c3f70453a7ae",
+  fakeGotchiCards: "0xB60175D86f6Ab871A9aefD3e350a9c5E939F4D3B",
+  fakeGotchiArt: "0xfE565a266760D5b23FE241D1eb6F52eeba8882E7",
   safeProxyFactory: "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2",
+};
+
+export const localVars: Constants = {
+  aavegotchiDiamond: "0x86e527A5863975d0141514D20248aD17B6BF92D0",
+  realmDiamond: "",
+  installationDiamond: "",
+  tileDiamond: "",
+  ghstAddress: "0xe97f36a00058aa7dfc4e85d23532c3f70453a7ae",
+  fakeGotchiCards: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+  fakeGotchiArt: "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6",
+  safeProxyFactory: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
 };
 
 const networkToVars: NetworkToConstants = {
@@ -81,6 +93,7 @@ const networkToVars: NetworkToConstants = {
   100: maticVars, //update
   84532: baseSepoliaVars,
   8453: baseVars,
+  31337: localVars,
 };
 
 export const gasPrice = 75000000000;
@@ -129,7 +142,6 @@ export function baseSepoliaProvider() {
   if (!url) {
     throw new Error("BASE_SEPOLIA_RPC_URL not found in environment variables");
   }
-  console.log("Using Base Sepolia URL:", url);
   return new ethers.providers.JsonRpcProvider(url);
 }
 

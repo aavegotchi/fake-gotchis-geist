@@ -115,6 +115,30 @@ library LibERC721 {
         s.tokenIdCounter = _tokenId;
     }
 
+    function safeBatchMintBridged(
+        address _to,
+        uint256 _tokenId,
+        uint256 _count,
+        uint256 _metadataId
+    ) internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        for (uint256 i; i < _count; i++) {
+            require(s.fakeGotchiOwner[_tokenId] == address(0), "LibERC721: tokenId already minted");
+
+            s.fakeGotchis[_tokenId] = _metadataId;
+            s.fakeGotchiOwner[_tokenId] = _to;
+            s.tokenIds.push(_tokenId);
+            s.ownerTokenIdIndexes[_to][_tokenId] = s.ownerTokenIds[_to].length;
+            s.ownerTokenIds[_to].push(_tokenId);
+
+            emit Mint(_to, _tokenId);
+            emit Transfer(address(0), _to, _tokenId);
+
+            _tokenId = _tokenId + 1;
+        }
+        s.tokenIdCounter = _tokenId;
+    }
+
     function safeMint(address _to, uint256 _metadataId) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
 

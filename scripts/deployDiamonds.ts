@@ -2,7 +2,8 @@
 import { Signer } from "@ethersproject/abstract-signer";
 import { deployCardDiamond } from "./card/deploy";
 import { deployNftDiamond } from "./nft/deploy";
-import { ethers } from "hardhat";
+import { ethers, network } from "hardhat";
+import { saveDeployedDiamonds } from "./helperFunctions";
 
 export async function deployDiamonds() {
   const fakeGotchisCardDiamond = await deployCardDiamond();
@@ -15,6 +16,15 @@ export async function deployDiamonds() {
   await (
     await fakeGotchiCardFacet.setFakeGotchisNftAddress(fakeGotchisNftDiamond)
   ).wait();
+
+  // Get chainId from provider
+  const chainId = network.config.chainId!;
+
+  // Save deployed diamond addresses
+  saveDeployedDiamonds(chainId, {
+    fakeGotchisNFT: fakeGotchisNftDiamond,
+    fakeGotchisCard: fakeGotchisCardDiamond,
+  });
 
   return { fakeGotchisCardDiamond, fakeGotchisNftDiamond };
 }

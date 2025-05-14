@@ -138,7 +138,9 @@ task(
         signer = await hre.ethers.getSigner(owner);
       } else if (
         hre.network.name === "matic" ||
-        hre.network.name === "mumbai"
+        hre.network.name === "mumbai" ||
+        hre.network.name === "base" ||
+        hre.network.name === "baseSepolia"
       ) {
         if (useLedger) {
           signer = new LedgerSigner(hre.ethers.provider);
@@ -167,6 +169,10 @@ task(
             `Deployed Facet Address for ${facet.facetName}:`,
             deployedFacet.address
           );
+
+          //wait for 5 seconds
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+
           deployedFacets.push(deployedFacet);
 
           const newSelectors = getSighashes(facet.addSelectors, hre.ethers);

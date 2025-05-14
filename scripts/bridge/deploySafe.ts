@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
 import path from "path";
-import { ethers as eh } from "hardhat";
+import { ethers as eh, network } from "hardhat";
 import fs from "fs";
 import axios from "axios";
 import * as dotenv from "dotenv";
@@ -91,80 +91,85 @@ async function getCreationTxnData(safeAddress: string): Promise<string> {
 }
 
 export async function deploySafe(safeAddress: string): Promise<string | null> {
-  try {
-    const networkVars = await varsForNetwork(eh);
-    const SAFE_PROXY_FACTORY = networkVars.safeProxyFactory;
+  //only try to deploy if we are no on localhost or hardhat
+  if (network.name === "localhost" || network.name === "hardhat") {
+    console.log("Skipping deployment on", network.name);
+    return null;
+  } else
+    try {
+      const networkVars = await varsForNetwork(eh);
+      const SAFE_PROXY_FACTORY = networkVars.safeProxyFactory;
 
-    const privateKey = process.env.SECRET;
-    if (!privateKey) {
-      throw new Error("Private key not found in environment variables");
-    }
-
-    const provider = toBase ? baseProvider() : baseSepoliaProvider();
-    const wallet = new ethers.Wallet(privateKey, await provider);
-
-    // Check if safe already exists
-
-    const code = await provider.getCode(safeAddress);
-    if (code !== "0x") {
-      console.log(
-        `Safe ${safeAddress} already exists on Base, skipping deployment...`
-      );
-      recordDeployedSafe(safeAddress);
-      return safeAddress;
-    }
-
-    console.log(`Deploying safe ${safeAddress} to Base...`);
-
-    // Get creation transaction data
-    const inputData = await getCreationTxnData(safeAddress);
-
-    const tx = await wallet.sendTransaction({
-      to: SAFE_PROXY_FACTORY,
-      data: inputData,
-      gasPrice: ethers.utils.parseUnits("0.01", "gwei"),
-      // gasLimit: 1500000,
-    });
-
-    const receipt = await tx.wait();
-
-    if (receipt.status === 1) {
-      const PROXY_CREATION_EVENT =
-        "0x4f51faf6c4561ff95f067657e43439f0f856d97c04d9ec9070a6199ad418e235";
-      const event = receipt.logs.find(
-        (log) => log.topics[0] === PROXY_CREATION_EVENT
-      );
-
-      if (!event) {
-        console.error("ProxyCreation event not found in logs");
-        recordFailedSafe(safeAddress);
-        return null;
+      const privateKey = process.env.SECRET;
+      if (!privateKey) {
+        throw new Error("Private key not found in environment variables");
       }
 
-      const iface = new ethers.utils.Interface([
-        "event ProxyCreation(address proxy, address singleton)",
-      ]);
-      const decodedEvent = iface.parseLog(event);
-      const deployedAddress = decodedEvent.args.proxy;
+      const provider = toBase ? baseProvider() : baseSepoliaProvider();
+      const wallet = new ethers.Wallet(privateKey, await provider);
 
-      if (deployedAddress.toLowerCase() !== safeAddress.toLowerCase()) {
-        console.error(
-          `❗Deployed address ${deployedAddress} does not match expected ${safeAddress}`
+      // Check if safe already exists
+
+      const code = await provider.getCode(safeAddress);
+      if (code !== "0x") {
+        console.log(
+          `Safe ${safeAddress} already exists on Base, skipping deployment...`
         );
+        recordDeployedSafe(safeAddress);
+        return safeAddress;
+      }
+
+      console.log(`Deploying safe ${safeAddress} to Base...`);
+
+      // Get creation transaction data
+      const inputData = await getCreationTxnData(safeAddress);
+
+      const tx = await wallet.sendTransaction({
+        to: SAFE_PROXY_FACTORY,
+        data: inputData,
+        gasPrice: ethers.utils.parseUnits("0.01", "gwei"),
+        // gasLimit: 1500000,
+      });
+
+      const receipt = await tx.wait();
+
+      if (receipt.status === 1) {
+        const PROXY_CREATION_EVENT =
+          "0x4f51faf6c4561ff95f067657e43439f0f856d97c04d9ec9070a6199ad418e235";
+        const event = receipt.logs.find(
+          (log) => log.topics[0] === PROXY_CREATION_EVENT
+        );
+
+        if (!event) {
+          console.error("ProxyCreation event not found in logs");
+          recordFailedSafe(safeAddress);
+          return null;
+        }
+
+        const iface = new ethers.utils.Interface([
+          "event ProxyCreation(address proxy, address singleton)",
+        ]);
+        const decodedEvent = iface.parseLog(event);
+        const deployedAddress = decodedEvent.args.proxy;
+
+        if (deployedAddress.toLowerCase() !== safeAddress.toLowerCase()) {
+          console.error(
+            `❗Deployed address ${deployedAddress} does not match expected ${safeAddress}`
+          );
+          recordFailedSafe(safeAddress);
+          return null;
+        }
+
+        console.log(`✅Successfully deployed safe to ${safeAddress} on Base`);
+        recordDeployedSafe(safeAddress);
+        return safeAddress;
+      } else {
         recordFailedSafe(safeAddress);
         return null;
       }
-
-      console.log(`✅Successfully deployed safe to ${safeAddress} on Base`);
-      recordDeployedSafe(safeAddress);
-      return safeAddress;
-    } else {
+    } catch (error) {
+      console.error("Deployment error:", error);
       recordFailedSafe(safeAddress);
       return null;
     }
-  } catch (error) {
-    console.error("Deployment error:", error);
-    recordFailedSafe(safeAddress);
-    return null;
-  }
 }
