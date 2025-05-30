@@ -25,6 +25,11 @@ interface GotchiNFTMetadata {
   status: number;
 }
 
+interface GotchiNFTMetadataTuple extends Array<number | GotchiNFTMetadata> {
+  0: number;
+  1: GotchiNFTMetadata;
+}
+
 interface GotchiNFTMetadataIds {
   [key: string]: GotchiNFTMetadata;
 }
@@ -52,7 +57,9 @@ async function writeBatch(
   let retries = 0;
   while (retries <= maxRetries) {
     try {
-      // Uncomment to send txn
+      if (batchNumber === 1) {
+        console.log("First batch - batchIds:", batchIds);
+      }
       const tx = await metadataFacet.batchWriteMetadata(batchIds, batch);
       await tx.wait();
       console.log(`Successfully wrote batch ${batchNumber}`);
@@ -103,13 +110,15 @@ async function main() {
     }
   }
 
-  const metadata: GotchiNFTMetadataIds = JSON.parse(
+  const rawMetadata: GotchiNFTMetadataTuple[] = JSON.parse(
     fs.readFileSync(METADATA_FILE, "utf8")
   );
 
-  const allMetadataIds: string[] = Object.keys(metadata);
-  const allMetadata: GotchiNFTMetadata[] = allMetadataIds.map(
-    (id) => metadata[id]
+  const allMetadataIds: string[] = rawMetadata.map((item) =>
+    item[0].toString()
+  );
+  const allMetadata: GotchiNFTMetadata[] = rawMetadata.map(
+    (item) => item[1] as GotchiNFTMetadata
   );
 
   const BATCH_SIZE = 20;
