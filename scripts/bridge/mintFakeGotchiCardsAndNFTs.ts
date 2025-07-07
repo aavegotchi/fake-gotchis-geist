@@ -2,11 +2,16 @@ import fs from "fs";
 import path from "path";
 import { varsForNetwork } from "../../constants";
 import { ethers } from "hardhat";
-import { DATA_DIR, MINTED_DIR, FGNFTPATH } from "./bridgeConstants";
+import {
+  DATA_DIR,
+  MINTED_DIR,
+  FGNFTPATH,
+  ensureMiscProgress,
+} from "./bridgeConstants";
+import { getRelayerSigner } from "../helperFunctions";
 
 const BATCH_SIZE = 100;
 const MAX_RETRIES = 3;
-const NFT_BATCH_THRESHOLD = 200;
 const NFT_CHUNK_SIZE = 200;
 const NFT_TRACKER_FILE = path.join(MINTED_DIR, "nft_minted_addresses.json");
 const CARDS_FILE = path.join(DATA_DIR, "FGCard/fakegotchiCardHolders.json");
@@ -78,14 +83,6 @@ function ensureDir(dir: string) {
   }
 }
 
-function splitIntoChunks<T>(arr: T[], chunkSize: number): T[][] {
-  const chunks = [];
-  for (let i = 0; i < arr.length; i += chunkSize) {
-    chunks.push(arr.slice(i, i + chunkSize));
-  }
-  return chunks;
-}
-
 function getMetadataIdByTokenId(tokenId: number): number {
   const tokenMetadataArr = JSON.parse(
     fs.readFileSync(TOKEN_METADATA_FILE, "utf8")
@@ -106,27 +103,6 @@ function loadNFTTracker(): NFTMintingTracker {
   if (fs.existsSync(NFT_TRACKER_FILE))
     return loadJSON<NFTMintingTracker>(NFT_TRACKER_FILE);
   return { mintedAddresses: [], lastProcessedIndex: 0 };
-}
-
-function updateNFTTracker(
-  tracker: NFTMintingTracker,
-  address: string,
-  holderNFTs: TokenBalance[],
-  mintedTokenIds: string[],
-  currentIndex: number
-) {
-  let entry = tracker.mintedAddresses.find((m) => m.address === address);
-  if (!entry) {
-    tracker.mintedAddresses.push({
-      address,
-      nfts: holderNFTs,
-      mintedNFTs: mintedTokenIds,
-    });
-  } else {
-    entry.mintedNFTs.push(...mintedTokenIds);
-  }
-  tracker.lastProcessedIndex = currentIndex;
-  saveJSON(NFT_TRACKER_FILE, tracker);
 }
 
 async function mintBatchWithRetry(
@@ -188,18 +164,6 @@ async function mintBatchWithRetry(
   return false;
 }
 
-function calculateBatchInfo(addresses: string[], holderData: any) {
-  let totalNFTs = 0;
-  let largestHolder = { address: "", nftCount: 0 };
-  addresses.forEach((address) => {
-    const nftCount = holderData[address].tokenBalances.length;
-    totalNFTs += nftCount;
-    if (nftCount > largestHolder.nftCount)
-      largestHolder = { address, nftCount };
-  });
-  return { addresses, totalNFTs, largestHolder };
-}
-
 function loadMintedTokenIds(): Set<string> {
   if (fs.existsSync(MINTED_TOKEN_IDS_FILE)) {
     return new Set(JSON.parse(fs.readFileSync(MINTED_TOKEN_IDS_FILE, "utf8")));
@@ -213,17 +177,6 @@ function saveMintedTokenIds(tokenIds: Set<string>) {
     JSON.stringify([...tokenIds], null, 2)
   );
 }
-
-// Add this new function to check token status on-chain
-// async function isTokenMinted(contract: any, tokenId: string): Promise<boolean> {
-//   try {
-//     const owner = await contract.ownerOf(tokenId);
-//     return owner !== ethers.constants.AddressZero;
-//   } catch (error) {
-//     // If ownerOf reverts, token is not minted
-//     return false;
-//   }
-// }
 
 // Add this function to find duplicates in the JSON
 function findDuplicateTokenIds(
@@ -386,10 +339,6 @@ async function processNFTHolders(
   console.log(`Cleaned holders JSON saved to ${cleanedJsonPath}`);
 
   // Get the contract for minting (on the current network)
-  const fakeGotchiNFTs = await ethers.getContractAt(
-    "IERC721",
-    contracts.fakeGotchiArt
-  );
 
   // Use cleanedHolderData for all further processing
   // Create a list of address-tokenCount pairs for smart batching
@@ -746,14 +695,20 @@ async function processCardHolders(
 }
 
 async function main() {
+  //make sure metadata has been written
+  ensureMiscProgress("writeFGNFTMetadata");
+  //@ts-ignore
+  const deployer = await getRelayerSigner(hre);
   const contracts = await varsForNetwork(ethers);
   const fakeGotchiCards = await ethers.getContractAt(
     "FakeGotchisCardFacet",
-    contracts.fakeGotchiCards
+    contracts.fakeGotchiCards,
+    deployer
   );
   const fakeGotchiNFTs = await ethers.getContractAt(
     "MetadataFacet",
-    contracts.fakeGotchiArt
+    contracts.fakeGotchiArt,
+    deployer
   );
   ensureDir(DATA_DIR);
   let progress: MintingProgress = {

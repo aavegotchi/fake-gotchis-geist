@@ -71,8 +71,8 @@ export const baseSepoliaVars: Constants = {
   installationDiamond: "",
   tileDiamond: "",
   ghstAddress: "0xe97f36a00058aa7dfc4e85d23532c3f70453a7ae",
-  fakeGotchiCards: "0xE4E508dab5D7d98f4c06aB6D24bB225588036C9D",
-  fakeGotchiArt: "0xD0dCC1d1E22D490e5270631787E1866E773b16C7",
+  fakeGotchiCards: "0x5bf14d25143e3b0a4966b16ac7010CbB96b04ef1",
+  fakeGotchiArt: "0x147cd59995E9F3925A883F81330577041f7AaC3E",
   safeProxyFactory: "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2",
 };
 

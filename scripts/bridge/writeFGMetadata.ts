@@ -2,7 +2,8 @@ import fs from "fs";
 import path from "path";
 import { varsForNetwork } from "../../constants";
 import { ethers } from "hardhat";
-import { DATA_DIR, FGNFTPATH } from "./bridgeConstants";
+import { DATA_DIR, FGNFTPATH, writeMiscProgress } from "./bridgeConstants";
+import { getRelayerSigner } from "../helperFunctions";
 
 interface GotchiNFTMetadata {
   publisher: string;
@@ -136,9 +137,12 @@ async function main() {
     }/${allMetadata.length} already processed)`
   );
 
+  //@ts-ignore
+  const deployer = await getRelayerSigner(hre);
   const metadataFacet = await ethers.getContractAt(
     "MetadataFacet",
-    c.fakeGotchiArt
+    c.fakeGotchiArt,
+    deployer
   );
 
   for (
@@ -177,6 +181,7 @@ async function main() {
 
   if (progress.lastProcessedIndex >= allMetadata.length) {
     console.log("All metadata successfully written onchain!");
+    writeMiscProgress("writeFGNFTMetadata", true);
   } else {
     console.log(
       `Process incomplete. Processed ${progress.completedBatches.length} of ${totalBatches} batches.`

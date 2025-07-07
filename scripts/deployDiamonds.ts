@@ -3,16 +3,21 @@ import { Signer } from "@ethersproject/abstract-signer";
 import { deployCardDiamond } from "./card/deploy";
 import { deployNftDiamond } from "./nft/deploy";
 import { ethers, network } from "hardhat";
-import { saveDeployedDiamonds } from "./helperFunctions";
+import { getRelayerSigner, saveDeployedDiamonds } from "./helperFunctions";
 
 export async function deployDiamonds() {
   const fakeGotchisCardDiamond = await deployCardDiamond();
   const fakeGotchisNftDiamond = await deployNftDiamond(fakeGotchisCardDiamond);
 
+  //@ts-ignore
+  const deployer = await getRelayerSigner(hre);
+
   const fakeGotchiCardFacet = await ethers.getContractAt(
     "FakeGotchisCardFacet",
-    fakeGotchisCardDiamond
+    fakeGotchisCardDiamond,
+    deployer
   );
+
   await (
     await fakeGotchiCardFacet.setFakeGotchisNftAddress(fakeGotchisNftDiamond)
   ).wait();

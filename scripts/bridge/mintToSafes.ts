@@ -4,11 +4,16 @@ import { ethers, network } from "hardhat";
 import { varsForNetwork } from "../../constants";
 import { deploySafe } from "./deploySafe";
 import { DATA_DIR, MINTED_DIR } from "./bridgeConstants";
+import { getRelayerSigner } from "../helperFunctions";
 
 // File paths
 const NFT_SAFES_FILE = path.join(DATA_DIR, "FGNFT", "gotchisNFTSafe.json");
 const CARD_SAFES_FILE = path.join(DATA_DIR, "FGCard", "gotchiCardsSafe.json");
 const PROGRESS_FILE = path.join(MINTED_DIR, "safe_minting_progress.json");
+const FAILED_SAFES_FILE = path.join(
+  MINTED_DIR,
+  "failed_safes_with_assets.json"
+);
 const TOKEN_METADATA_FILE = path.join(DATA_DIR, "FGNFT", "tokenMetadata.json");
 
 // Constants
@@ -24,6 +29,11 @@ interface TokenBalance {
 interface SafeDetails {
   safeAddress: string;
   tokenBalances: TokenBalance[];
+}
+
+interface FailedSafeData {
+  cards: SafeDetails[];
+  nfts: SafeDetails[];
 }
 
 interface MintingProgress {
@@ -43,6 +53,43 @@ interface MintingProgress {
     totalProcessed: number;
     successRate: number;
   };
+}
+
+function documentFailedSafe(safe: SafeDetails, type: "cards" | "nfts") {
+  let failedSafesData: FailedSafeData = { cards: [], nfts: [] };
+
+  if (fs.existsSync(FAILED_SAFES_FILE)) {
+    try {
+      const fileContent = fs.readFileSync(FAILED_SAFES_FILE, "utf8");
+      if (fileContent) {
+        failedSafesData = JSON.parse(fileContent);
+      }
+    } catch (error) {
+      console.warn(
+        `Could not parse ${FAILED_SAFES_FILE}. It will be overwritten.`
+      );
+    }
+  }
+
+  // Ensure arrays exist
+  if (!failedSafesData.cards) failedSafesData.cards = [];
+  if (!failedSafesData.nfts) failedSafesData.nfts = [];
+
+  // Check for duplicates before adding
+  const alreadyExists = failedSafesData[type].some(
+    (s) => s.safeAddress === safe.safeAddress
+  );
+
+  if (!alreadyExists) {
+    failedSafesData[type].push(safe);
+    fs.writeFileSync(
+      FAILED_SAFES_FILE,
+      JSON.stringify(failedSafesData, null, 2)
+    );
+    console.log(
+      `Documented failed safe ${safe.safeAddress} with its assets in ${FAILED_SAFES_FILE}.`
+    );
+  }
 }
 
 // Load and build tokenId -> metadataId map (same logic as mintFakeGotchiCardsAndNFTs.ts)
@@ -238,6 +285,8 @@ async function processSafes(
         console.log(
           `Safe deployment failed for ${safe.safeAddress}, skipping...`
         );
+        // The safe is already in the failed list, but we ensure its assets are documented.
+        documentFailedSafe(safe, type);
         continue;
       }
 
@@ -276,6 +325,7 @@ async function processSafes(
       console.log(
         `Skipping ${type} minting for failed safe ${safe.safeAddress}`
       );
+      documentFailedSafe(safe, type);
       updateProgress(progress, type, safe, false);
       continue;
     }
@@ -313,13 +363,17 @@ async function main() {
 
   // Get contract instances
   const contracts = await varsForNetwork(ethers);
+  //@ts-ignore
+  const deployer = await getRelayerSigner(hre);
   const fakeGotchiCards = await ethers.getContractAt(
     "FakeGotchisCardFacet",
-    contracts.fakeGotchiCards
+    contracts.fakeGotchiCards,
+    deployer
   );
   const fakeGotchiNFTs = await ethers.getContractAt(
     "MetadataFacet",
-    contracts.fakeGotchiArt
+    contracts.fakeGotchiArt,
+    deployer
   );
 
   // Load safe data

@@ -3,6 +3,11 @@ import { OwnershipFacet } from "../typechain-types";
 import path from "path";
 import fs from "fs";
 import { network, run } from "hardhat";
+import { HardhatRuntimeEnvironment } from "hardhat/types";
+import {
+  DefenderRelayProvider,
+  DefenderRelaySigner,
+} from "defender-relay-client/lib/ethers";
 
 export const gasPrice = 280000000000;
 
@@ -74,7 +79,7 @@ const chainAddresses: NetworkAddresses = {
     ghstAddress: "0x385Eeac5cB85A38A9a07A70c73e0a3271CfB54A7",
   },
   84532: {
-    aavegotchiDiamond: "0x86e527A5863975d0141514D20248aD17B6BF92D0", // Base Sepolia Testnet
+    aavegotchiDiamond: "0x03A74B3e2DD81F5E8FFA1Fb96bb81B35cF3ed5d2", // Base Sepolia Testnet
     ghstAddress: "0xe97f36a00058aa7dfc4e85d23532c3f70453a7ae",
   },
   8453: {
@@ -165,6 +170,80 @@ export function getDeployedDiamonds(chainId: number): DeployedDiamonds {
   return diamonds;
 }
 
+export const xpRelayerAddress = "0xb6384935d68e9858f8385ebeed7db84fc93b1420";
+export const xpRelayerAddressBaseSepolia =
+  "0x46c7064038C4821dDd1c27Ed9FC4b283a74AC6d2";
+export const xpRelayerAddressBase = "";
+
+export interface RelayerInfo {
+  apiKey: string;
+  apiSecret: string;
+}
+
+export async function getRelayerSigner(hre: HardhatRuntimeEnvironment) {
+  const testing = ["hardhat", "localhost"].includes(hre.network.name);
+  let xpRelayer;
+  if (
+    hre.network.config.chainId === 137 ||
+    hre.network.config.chainId === 8453
+  ) {
+    xpRelayer = xpRelayerAddress;
+  } else if (hre.network.config.chainId === 84532) {
+    xpRelayer = xpRelayerAddressBaseSepolia;
+  }
+
+  if (testing) {
+    if (hre.network.config.chainId !== 31337) {
+      console.log("Using Hardhat");
+
+      await hre.network.provider.request({
+        method: "hardhat_impersonateAccount",
+        params: [xpRelayer],
+      });
+      await hre.network.provider.request({
+        method: "hardhat_setBalance",
+        params: [xpRelayerAddress, "0x100000000000000000000000"],
+      });
+      return await hre.ethers.provider.getSigner(xpRelayerAddress);
+    } else {
+      return (await hre.ethers.getSigners())[0];
+    }
+    //we assume same defender for base mainnet
+  } else if (hre.network.name === "matic" || hre.network.name === "base") {
+    console.log("USING MATIC");
+
+    const credentials: RelayerInfo = {
+      apiKey: process.env.DEFENDER_APIKEY!,
+      apiSecret: process.env.DEFENDER_SECRET!,
+    };
+
+    const provider = new DefenderRelayProvider(credentials);
+    return new DefenderRelaySigner(credentials, provider, {
+      speed: "safeLow",
+      validForSeconds: 7200,
+    });
+  } else if (hre.network.name === "baseSepolia") {
+    console.log("USING BASE SEPOLIA DEFENDER");
+    const credentials: RelayerInfo = {
+      apiKey: process.env.DEFENDER_APIKEY_BASESEPOLIA!,
+      apiSecret: process.env.DEFENDER_SECRET_BASESEPOLIA!,
+    };
+
+    const provider = new DefenderRelayProvider(credentials);
+    return new DefenderRelaySigner(credentials, provider, {
+      speed: "safeLow",
+      validForSeconds: 180,
+    });
+  } else if (
+    ["tenderly", "polter", "amoy", "geist"].includes(hre.network.name)
+  ) {
+    //impersonate
+    return (await hre.ethers.getSigners())[0];
+  } else {
+    throw Error("Incorrect network selected");
+  }
+}
+
 export async function verifyContract(
   address: string,
   withArgs: boolean = false,
@@ -173,38 +252,50 @@ export async function verifyContract(
 ) {
   //only try to verify if it is a live network
 
-  if (["localhost", "hardhat"].includes(network.name)) {
+  //@ts-ignore
+  if (["localhost", "hardhat"].includes(hre.network.name)) {
     console.log("Skipping verification on local network");
     return;
   }
 
-  //wait for 3 seconds
-  await new Promise((resolve) => setTimeout(resolve, 3000));
+  console.log(`Attempting to verify contract at ${address}...`);
 
-  if (withArgs) {
-    try {
-      const verifyArgs: any = {
-        address,
-        constructorArguments: args,
-      };
-      if (contractName) {
-        verifyArgs.contract = contractName;
-      }
-      await run("verify:verify", verifyArgs);
-    } catch (error) {
-      console.log("Error verifying contract", error);
+  try {
+    const verifyArgs: any = {
+      address,
+    };
+
+    if (withArgs && args) {
+      verifyArgs.constructorArguments = args;
     }
-  } else {
-    try {
-      const verifyArgs: any = {
-        address,
-      };
-      if (contractName) {
-        verifyArgs.contract = contractName;
-      }
-      await run("verify:verify", verifyArgs);
-    } catch (error) {
-      console.log("Error verifying contract", error);
+
+    if (contractName) {
+      verifyArgs.contract = contractName;
+    }
+
+    //@ts-ignore
+    await hre.run("verify:verify", verifyArgs);
+    console.log(`Successfully verified contract ${address}`);
+  } catch (error: any) {
+    const msg = error?.message || "";
+    if (
+      msg.includes("Already Verified") ||
+      msg.includes("ContractAlreadyVerified") || // Added to catch Etherscan's newer message
+      msg.includes("already verified") || // General catch
+      msg.includes("Contract source code already verified") // Another Etherscan variant
+    ) {
+      console.log(
+        `Contract ${address}${
+          contractName ? " (" + contractName + ")" : ""
+        } already verified on block explorer, skipping.`
+      );
+    } else {
+      console.error(
+        `Error verifying contract ${address}${
+          contractName ? " (" + contractName + ")" : ""
+        }:`,
+        msg
+      );
     }
   }
 }

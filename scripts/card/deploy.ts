@@ -2,15 +2,20 @@
 import { Signer } from "@ethersproject/abstract-signer";
 import { ethers } from "hardhat";
 import { DiamondCutFacet, OwnershipFacet } from "../../typechain-types";
-import { addresses, verifyContract } from "../helperFunctions";
+import {
+  addresses,
+  getRelayerSigner,
+  verifyContract,
+} from "../helperFunctions";
 
 const { getSelectors, FacetCutAction } = require("../libraries/diamond");
 
 export async function deployCardDiamond() {
   console.log("Deploying FAKE Gotchis Card Diamond contracts\n");
 
-  const accounts: Signer[] = await ethers.getSigners();
-  const deployer = accounts[0];
+  //use relayer to deploy
+  //@ts-ignore
+  const deployer = await getRelayerSigner(hre);
   const deployerAddress = await deployer.getAddress();
   console.log("Deployer:", deployerAddress);
 
@@ -18,14 +23,20 @@ export async function deployCardDiamond() {
   console.log("Aavegotchi Diamond Address:", aavegotchiDiamond);
 
   // deploy DiamondCutFacet
-  const DiamondCutFacet = await ethers.getContractFactory("DiamondCutFacet");
+  const DiamondCutFacet = await ethers.getContractFactory(
+    "DiamondCutFacet",
+    deployer
+  );
   const diamondCutFacet = await DiamondCutFacet.deploy();
   await diamondCutFacet.deployed();
   console.log("DiamondCutFacet deployed:", diamondCutFacet.address);
   await verifyContract(diamondCutFacet.address, false);
 
   // deploy Diamond
-  const Diamond = await ethers.getContractFactory("FakeGotchisCardDiamond");
+  const Diamond = await ethers.getContractFactory(
+    "FakeGotchisCardDiamond",
+    deployer
+  );
   const diamond = await Diamond.deploy(
     deployerAddress,
     diamondCutFacet.address,
@@ -41,7 +52,7 @@ export async function deployCardDiamond() {
   );
 
   // deploy DiamondInit
-  const DiamondInit = await ethers.getContractFactory("DiamondInit");
+  const DiamondInit = await ethers.getContractFactory("DiamondInit", deployer);
   const diamondInit = await DiamondInit.deploy();
   await diamondInit.deployed();
   console.log("DiamondInit deployed:", diamondInit.address);
@@ -55,7 +66,7 @@ export async function deployCardDiamond() {
   ];
   const cut = [];
   for (const FacetName of FacetNames) {
-    const Facet = await ethers.getContractFactory(FacetName);
+    const Facet = await ethers.getContractFactory(FacetName, deployer);
     const facet = await Facet.deploy();
     await facet.deployed();
     console.log(`${FacetName} deployed: ${facet.address}`);
@@ -67,7 +78,11 @@ export async function deployCardDiamond() {
     });
   }
 
-  const diamondCut = await ethers.getContractAt("IDiamondCut", diamond.address);
+  const diamondCut = await ethers.getContractAt(
+    "IDiamondCut",
+    diamond.address,
+    deployer
+  );
 
   // call to init function
   const functionCall = diamondInit.interface.encodeFunctionData("init");
@@ -93,7 +108,7 @@ export async function deployCardDiamond() {
   const diamondOwner = await ownershipFacet.owner();
   console.log("FAKE Gotchis Card Diamond owner is:", diamondOwner);
 
-  if (diamondOwner !== deployerAddress) {
+  if (diamondOwner.toLowerCase() !== deployerAddress.toLowerCase()) {
     throw new Error(
       `FAKE Gotchis Card Diamond owner ${diamondOwner} is not deployer address ${deployerAddress}!`
     );
