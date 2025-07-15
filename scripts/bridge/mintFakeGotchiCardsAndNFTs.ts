@@ -12,13 +12,77 @@ import { getRelayerSigner } from "../helperFunctions";
 
 const BATCH_SIZE = 100;
 const MAX_RETRIES = 3;
-const NFT_CHUNK_SIZE = 200;
+// Maximum NFTs to mint in a single transaction – keep comfortably below block gas limits
+const NFT_CHUNK_SIZE = 100;
 const NFT_TRACKER_FILE = path.join(MINTED_DIR, "nft_minted_addresses.json");
 const CARDS_FILE = path.join(DATA_DIR, "FGCard/fakegotchiCardHolders.json");
 const NFTS_FILE = path.join(FGNFTPATH, "fakeGotchisNFTHolders.json");
 const PROGRESS_FILE = path.join(MINTED_DIR, "minting_progress.json");
 const MINTED_TOKEN_IDS_FILE = path.join(MINTED_DIR, "minted_token_ids.json");
 const TOKEN_METADATA_FILE = path.join(FGNFTPATH, "tokenMetadata.json");
+
+// NEW: Unified detailed progress tracking for both Cards and NFTs
+// ---------------------------------------------------------------------------
+
+const COMBINED_PROGRESS_FILE = path.join(MINTED_DIR, "fg_minting_details.json");
+
+interface AddressNFTProgress {
+  tokenIds: string[];
+  timestamp: number;
+}
+
+interface AddressCardProgress {
+  balance: string; // amount of card tokens minted (tokenId 0)
+  timestamp: number;
+}
+
+interface CombinedProgress {
+  nftAddresses: Record<string, AddressNFTProgress>;
+  cardAddresses: Record<string, AddressCardProgress>;
+  startTime: number;
+}
+
+function loadCombinedProgress(): CombinedProgress {
+  try {
+    if (fs.existsSync(COMBINED_PROGRESS_FILE)) {
+      return JSON.parse(fs.readFileSync(COMBINED_PROGRESS_FILE, "utf8"));
+    }
+  } catch (e) {
+    console.warn("⚠️  Could not parse combined progress file – starting fresh");
+  }
+  return { nftAddresses: {}, cardAddresses: {}, startTime: Date.now() };
+}
+
+function saveCombinedProgress(progress: CombinedProgress) {
+  if (!fs.existsSync(MINTED_DIR)) fs.mkdirSync(MINTED_DIR, { recursive: true });
+  fs.writeFileSync(COMBINED_PROGRESS_FILE, JSON.stringify(progress, null, 2));
+}
+
+function updateCombinedNFT(
+  owner: string,
+  tokenIds: string[],
+  progress: CombinedProgress
+) {
+  const lower = owner.toLowerCase();
+  if (!progress.nftAddresses[lower]) {
+    progress.nftAddresses[lower] = { tokenIds: [], timestamp: Date.now() };
+  }
+  const set = new Set(progress.nftAddresses[lower].tokenIds);
+  tokenIds.forEach((id) => set.add(id));
+  progress.nftAddresses[lower].tokenIds = Array.from(set);
+  progress.nftAddresses[lower].timestamp = Date.now();
+  saveCombinedProgress(progress);
+}
+
+function updateCombinedCard(
+  owner: string,
+  balance: string,
+  progress: CombinedProgress
+) {
+  const lower = owner.toLowerCase();
+  progress.cardAddresses[lower] = { balance, timestamp: Date.now() };
+  saveCombinedProgress(progress);
+}
 
 interface TokenBalance {
   tokenId: string;
@@ -116,7 +180,9 @@ async function mintBatchWithRetry(
   while (retries <= MAX_RETRIES) {
     try {
       console.log(`Minting ${type} batch ${batchNumber} of ${totalBatches}`);
-      await mintFunction(batch);
+      const tx = await mintFunction(batch);
+      const receipt = await tx.wait();
+      if (receipt.status !== 1) throw new Error("Transaction reverted");
       console.log(`Successfully minted ${type} batch ${batchNumber}`);
       return true;
     } catch (error) {
@@ -260,6 +326,8 @@ async function processNFTHolders(
 ) {
   ensureDir(MINTED_DIR);
   let mintedTokenIds = loadMintedTokenIds();
+  // Combined detailed progress object
+  const combinedProgress = loadCombinedProgress();
   const contracts = await varsForNetwork(ethers);
 
   // Connect to Polygon network for owner checks using a read-only provider
@@ -433,12 +501,19 @@ async function processNFTHolders(
 
           if (success) {
             // Update both tracking systems
-            for (const tokenId of chunk.map((nft) => nft.tokenId)) {
+            const mintedThisChunk = chunk.map((nft) => nft.tokenId);
+            mintedThisChunk.forEach((tokenId) => {
               mintedTokenIds.add(tokenId);
               if (duplicateTokenMap.has(tokenId)) {
                 duplicateTokenMap.get(tokenId)!.isMinted = true;
               }
-            }
+            });
+            // Record in combined progress
+            updateCombinedNFT(
+              nextAddress.address,
+              mintedThisChunk,
+              combinedProgress
+            );
             saveMintedTokenIds(mintedTokenIds);
             console.log(
               `Successfully minted chunk ${chunkIndex + 1}/${
@@ -521,14 +596,14 @@ async function processNFTHolders(
     if (success) {
       // Update both tracking systems
       for (const batchItem of batchData) {
-        for (const tokenId of batchItem.tokenBalances.map(
-          (nft) => nft.tokenId
-        )) {
+        const mintedNow = batchItem.tokenBalances.map((nft) => nft.tokenId);
+        mintedNow.forEach((tokenId) => {
           mintedTokenIds.add(tokenId);
           if (duplicateTokenMap.has(tokenId)) {
             duplicateTokenMap.get(tokenId)!.isMinted = true;
           }
-        }
+        });
+        updateCombinedNFT(batchItem.ownerAddress, mintedNow, combinedProgress);
       }
       saveMintedTokenIds(mintedTokenIds);
       console.log(`Successfully minted batch of ${batch.length} addresses`);
@@ -600,11 +675,13 @@ async function processNFTHolders(
       );
       if (success) {
         for (const batchItem of batchData) {
-          for (const tokenId of batchItem.tokenBalances.map(
-            (nft) => nft.tokenId
-          )) {
-            mintedTokenIds.add(tokenId);
-          }
+          const newlyMinted = batchItem.tokenBalances.map((nft) => nft.tokenId);
+          newlyMinted.forEach((id) => mintedTokenIds.add(id));
+          updateCombinedNFT(
+            batchItem.ownerAddress,
+            newlyMinted,
+            combinedProgress
+          );
         }
         saveMintedTokenIds(mintedTokenIds);
         console.log(`Catch-all: Successfully minted batch ${batchNumber}`);
@@ -643,6 +720,7 @@ async function processCardHolders(
   progress: MintingProgress
 ) {
   ensureDir(MINTED_DIR);
+  const combinedProgress = loadCombinedProgress();
   const remainingData = Object.entries(holderData).reduce(
     (acc: Record<string, any>, [key, value]: [string, any]) => {
       const index = parseInt(key);
@@ -684,6 +762,15 @@ async function processCardHolders(
       progress.cards.completedBatches.push(batchNumber);
       progress.cards.lastProcessedIndex = i + BATCH_SIZE;
       saveJSON(PROGRESS_FILE, progress);
+
+      // Record per-address balances in combined progress
+      batch.forEach((b) => {
+        updateCombinedCard(
+          b.ownerAddress,
+          b.tokenBalances.balance,
+          combinedProgress
+        );
+      });
     } else {
       console.error(
         `Failed to process cards batch starting at index ${i}. Stopping.`
@@ -695,64 +782,68 @@ async function processCardHolders(
 }
 
 async function main() {
-  //make sure metadata has been written
+  // Ensure metadata has been generated before minting NFTs
   ensureMiscProgress("writeFGNFTMetadata");
+
   //@ts-ignore
   const deployer = await getRelayerSigner(hre);
   const contracts = await varsForNetwork(ethers);
+
   const fakeGotchiCards = await ethers.getContractAt(
     "FakeGotchisCardFacet",
     contracts.fakeGotchiCards,
     deployer
   );
+
   const fakeGotchiNFTs = await ethers.getContractAt(
     "MetadataFacet",
     contracts.fakeGotchiArt,
     deployer
   );
+
   ensureDir(DATA_DIR);
+
   let progress: MintingProgress = {
     cards: { completedBatches: [], lastProcessedIndex: 0 },
     nfts: { completedBatches: [], lastProcessedIndex: 0 },
   };
+
   if (fs.existsSync(PROGRESS_FILE)) {
     try {
       progress = loadJSON<MintingProgress>(PROGRESS_FILE);
       console.log("Resuming from previous run");
-    } catch (error) {
-      console.warn(
-        "Could not parse progress file, starting from beginning:",
-        error
-      );
+    } catch (err) {
+      console.warn("Could not parse progress file – starting fresh", err);
     }
   }
+
   const cardData: CardHolderBalances = loadJSON(CARDS_FILE);
   const cardsComplete = await processCardHolders(
     cardData,
     fakeGotchiCards.massMint,
     progress
   );
+
   const nftData: HolderBalances = loadJSON(NFTS_FILE);
   const nftsComplete = await processNFTHolders(
     nftData,
     fakeGotchiNFTs.mintBatch,
     progress
   );
-  // Log total minted tokenIds
+
   const mintedTokenIds = loadMintedTokenIds();
   console.log(`Total NFT tokenIds minted: ${mintedTokenIds.size}`);
+
   if (cardsComplete && nftsComplete) {
     console.log("All minting completed successfully!");
   } else {
-    console.log(
-      "Process incomplete. Run the script again to continue from where it left off."
-    );
+    console.log("Process incomplete. Re-run script to continue.");
   }
 }
 
 if (require.main === module) {
-  main().catch((error) => {
-    console.error("Error in main process:", error);
+  main().catch((err) => {
+    console.error("Fatal error in minting script", err);
     process.exit(1);
   });
 }

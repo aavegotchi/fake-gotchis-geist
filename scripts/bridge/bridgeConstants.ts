@@ -16,6 +16,13 @@ export type miscType = keyof MiscFlags;
 
 export function writeMiscProgress(type: miscType, value: boolean) {
   //create file if it doesn't exist
+
+  //create directory if it doesn't exist
+  if (!fs.existsSync(MINTED_DIR)) {
+    fs.mkdirSync(MINTED_DIR, { recursive: true });
+  }
+
+  //create file if it doesn't exist
   if (!fs.existsSync(MISC_FILE)) {
     fs.writeFileSync(MISC_FILE, JSON.stringify({}));
   }

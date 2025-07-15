@@ -12,6 +12,7 @@ import { IDiamondLoupe, IDiamondCut, OwnershipFacet } from "../typechain-types";
 import { LedgerSigner } from "@anders-t/ethers-ledger";
 import {
   gasPrice,
+  getRelayerSigner,
   getSelectors,
   getSighashes,
 } from "../scripts/helperFunctions";
@@ -34,6 +35,7 @@ export interface DeployUpgradeTaskArgs {
   facetsAndAddSelectors: string;
   useMultisig: boolean;
   useLedger: boolean;
+  useRelayer: boolean;
   initAddress?: string;
   initCalldata?: string;
   rawSigs?: boolean;
@@ -100,6 +102,7 @@ task(
     "Set to true if multisig should be used for deploying"
   )
   .addFlag("useLedger", "Set to true if Ledger should be used for signing")
+  .addFlag("useRelayer", "Set to true if Relayer should be used for signing")
   // .addFlag("verifyFacets","Set to true if facets should be verified after deployment")
 
   .setAction(
@@ -111,6 +114,7 @@ task(
       const diamondAddress: string = taskArgs.diamondAddress;
       const useMultisig = taskArgs.useMultisig;
       const useLedger = taskArgs.useLedger;
+      const useRelayer = taskArgs.useRelayer;
       const initAddress = taskArgs.initAddress;
       const initCalldata = taskArgs.initCalldata;
 
@@ -144,7 +148,11 @@ task(
       ) {
         if (useLedger) {
           signer = new LedgerSigner(hre.ethers.provider);
-        } else signer = (await hre.ethers.getSigners())[0];
+        } else if (useRelayer) {
+          signer = await getRelayerSigner(hre);
+        } else {
+          signer = (await hre.ethers.getSigners())[0];
+        }
       } else {
         throw Error("Incorrect network selected");
       }

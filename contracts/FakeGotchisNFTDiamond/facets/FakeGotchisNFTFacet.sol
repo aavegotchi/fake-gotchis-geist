@@ -95,6 +95,13 @@ contract FakeGotchisNFTFacet is Modifiers {
         owner_ = s.fakeGotchiOwner[_tokenId];
     }
 
+    function batchOwnerOf(uint256[] calldata _tokenIds) external view returns (address[] memory owners_) {
+        owners_ = new address[](_tokenIds.length);
+        for (uint256 i = 0; i < _tokenIds.length; i++) {
+            owners_[i] = s.fakeGotchiOwner[_tokenIds[i]];
+        }
+    }
+
     /**
      * @notice Get the approved address for a single NFT
      * @dev Throws if `_tokenId` is not a valid NFT.
@@ -254,7 +261,7 @@ contract FakeGotchisNFTFacet is Modifiers {
         json = abi.encodePacked('"description":"', LibStrings.removeLineBreak(mData.description), '",', json);
         json = abi.encodePacked('{"name":"', mData.name, '",', json, "}");
 
-//        return string(abi.encodePacked(json)); // For test
+        //        return string(abi.encodePacked(json)); // For test
         return string(abi.encodePacked("data:application/json;base64,", Base64.encode(json)));
     }
 

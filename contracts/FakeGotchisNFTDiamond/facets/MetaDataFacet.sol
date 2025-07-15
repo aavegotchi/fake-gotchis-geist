@@ -368,4 +368,14 @@ contract MetadataFacet is Modifiers {
 
         emit MetadataLike(_id, _sender);
     }
+
+    event FixBurnedStats(uint256[] metadataIds, uint256[] burnedCounts, uint256[] startingTokenIds);
+
+    function emitBurnedAmounts(
+        uint256[] calldata _ids,
+        uint256[] calldata _amounts,
+        uint256[] calldata _startingTokenIds
+    ) external onlyOwner {
+        emit FixBurnedStats(_ids, _amounts, _startingTokenIds);
+    }
 }

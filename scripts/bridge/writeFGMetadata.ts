@@ -1,10 +1,11 @@
 import fs from "fs";
 import path from "path";
-import { varsForNetwork } from "../../constants";
 import { ethers } from "hardhat";
-import { DATA_DIR, FGNFTPATH, writeMiscProgress } from "./bridgeConstants";
+import { varsForNetwork } from "../../constants";
+import { FGNFTPATH, MINTED_DIR, writeMiscProgress } from "./bridgeConstants";
 import { getRelayerSigner } from "../helperFunctions";
 
+// ---------------- Types ----------------
 interface GotchiNFTMetadata {
   publisher: string;
   royalty: [number, number];
@@ -31,15 +32,12 @@ interface GotchiNFTMetadataTuple extends Array<number | GotchiNFTMetadata> {
   1: GotchiNFTMetadata;
 }
 
-interface GotchiNFTMetadataIds {
-  [key: string]: GotchiNFTMetadata;
-}
-
 interface ProgressTracker {
   completedBatches: number[];
   lastProcessedIndex: number;
 }
 
+// ---------------- Helpers ----------------
 async function writeBatch(
   metadataFacet: any,
   allMetadata: GotchiNFTMetadata[],
@@ -47,152 +45,117 @@ async function writeBatch(
   startIndex: number,
   batchSize: number,
   totalBatches: number,
-  maxRetries: number = 3
+  maxRetries = 3
 ): Promise<boolean> {
   const batch = allMetadata.slice(startIndex, startIndex + batchSize);
   const batchIds = allMetadataIds.slice(startIndex, startIndex + batchSize);
   const batchNumber = Math.floor(startIndex / batchSize) + 1;
 
-  console.log(`Writing batch ${batchNumber} of ${totalBatches}`);
+  console.log(`Writing metadata batch ${batchNumber} / ${totalBatches}`);
 
   let retries = 0;
   while (retries <= maxRetries) {
     try {
-      if (batchNumber === 1) {
-        console.log("First batch - batchIds:", batchIds);
-      }
       const tx = await metadataFacet.batchWriteMetadata(batchIds, batch);
       await tx.wait();
-      console.log(`Successfully wrote batch ${batchNumber}`);
+      console.log(`✅  Batch ${batchNumber} written`);
       return true;
-    } catch (error) {
+    } catch (err) {
       retries++;
       if (retries > maxRetries) {
-        console.error(
-          `Failed to write batch ${batchNumber} after ${maxRetries} retries:`,
-          error
-        );
+        console.error(`❌  Failed batch ${batchNumber}`, err);
         return false;
       }
-      console.warn(
-        `Attempt ${retries}/${maxRetries} failed for batch ${batchNumber}. Retrying...`
-      );
-      // Exponential backoff
-      await new Promise((resolve) =>
-        setTimeout(resolve, 1000 * Math.pow(2, retries))
-      );
+      console.warn(`Retry ${retries}/${maxRetries} for batch ${batchNumber}`);
+      await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, retries)));
     }
   }
   return false;
 }
 
-async function main() {
+export async function writeFGNFTMetadata(): Promise<void> {
   const c = await varsForNetwork(ethers);
 
   const METADATA_FILE = `${FGNFTPATH}/gotchiNFTMetadata.json`;
-  const PROGRESS_FILE = path.join(FGNFTPATH, "metadata_progress.json");
+  const PROGRESS_FILE = path.join(MINTED_DIR, "metadata_progress.json");
 
-  // Initialize or load progress tracker
   let progress: ProgressTracker = {
     completedBatches: [],
     lastProcessedIndex: 0,
   };
+  //create the directory if it doesn't exist
+  if (!fs.existsSync(MINTED_DIR)) {
+    fs.mkdirSync(MINTED_DIR, { recursive: true });
+  }
+
+  // Load existing progress if file exists
   if (fs.existsSync(PROGRESS_FILE)) {
     try {
       progress = JSON.parse(fs.readFileSync(PROGRESS_FILE, "utf8"));
+      // Ensure required properties exist with sensible defaults
+      if (!Array.isArray(progress.completedBatches))
+        progress.completedBatches = [];
+      if (typeof progress.lastProcessedIndex !== "number")
+        progress.lastProcessedIndex = 0;
       console.log(
-        `Resuming from previous run. Last processed index: ${progress.lastProcessedIndex}`
+        `Resuming metadata write. Last index: ${progress.lastProcessedIndex}`
       );
-    } catch (error) {
-      console.warn(
-        "Could not parse progress file, starting from beginning:",
-        error
-      );
+    } catch {
+      console.warn("Could not parse progress file – starting fresh");
     }
   }
 
-  const rawMetadata: GotchiNFTMetadataTuple[] = JSON.parse(
+  const raw: GotchiNFTMetadataTuple[] = JSON.parse(
     fs.readFileSync(METADATA_FILE, "utf8")
   );
-
-  const allMetadataIds: string[] = rawMetadata.map((item) =>
-    item[0].toString()
-  );
-  const allMetadata: GotchiNFTMetadata[] = rawMetadata.map(
-    (item) => item[1] as GotchiNFTMetadata
-  );
+  const allIds = raw.map((t) => t[0].toString());
+  const allData = raw.map((t) => t[1] as GotchiNFTMetadata);
 
   const BATCH_SIZE = 20;
-  const totalBatches = Math.ceil(allMetadata.length / BATCH_SIZE);
-
-  // Calculate remaining metadata
-  const remainingMetadata = allMetadataIds.filter((_, index) => {
-    const batchNumber = Math.floor(index / BATCH_SIZE);
-    return !progress.completedBatches.includes(batchNumber);
-  });
-
-  console.log(
-    `Writing ${remainingMetadata.length} remaining metadata onchain (${
-      allMetadata.length - remainingMetadata.length
-    }/${allMetadata.length} already processed)`
-  );
+  const totalBatches = Math.ceil(allData.length / BATCH_SIZE);
 
   //@ts-ignore
-  const deployer = await getRelayerSigner(hre);
+  const signer = await getRelayerSigner(hre);
   const metadataFacet = await ethers.getContractAt(
     "MetadataFacet",
     c.fakeGotchiArt,
-    deployer
+    signer
   );
 
   for (
     let i = progress.lastProcessedIndex;
-    i < allMetadata.length;
+    i < allData.length;
     i += BATCH_SIZE
   ) {
     const batchNumber = Math.floor(i / BATCH_SIZE);
+    if (progress.completedBatches.includes(batchNumber)) continue;
 
-    if (progress.completedBatches.includes(batchNumber)) {
-      console.log(`Skipping already completed batch ${batchNumber + 1}`);
-      continue;
-    }
-
-    const success = await writeBatch(
+    const ok = await writeBatch(
       metadataFacet,
-      allMetadata,
-      allMetadataIds,
+      allData,
+      allIds,
       i,
       BATCH_SIZE,
-      totalBatches,
-      3 // maxRetries
+      totalBatches
     );
+    if (!ok) throw new Error(`Batch ${batchNumber} failed`);
 
-    if (success) {
-      progress.completedBatches.push(batchNumber);
-      progress.lastProcessedIndex = i + BATCH_SIZE;
-      fs.writeFileSync(PROGRESS_FILE, JSON.stringify(progress, null, 2));
-    } else {
-      console.error(
-        `Failed to process batch starting at index ${i}. Stopping.`
-      );
-      break;
-    }
+    progress.completedBatches.push(batchNumber);
+    progress.lastProcessedIndex = i + BATCH_SIZE;
+    fs.writeFileSync(PROGRESS_FILE, JSON.stringify(progress, null, 2));
   }
 
-  if (progress.lastProcessedIndex >= allMetadata.length) {
-    console.log("All metadata successfully written onchain!");
+  if (progress.lastProcessedIndex >= allData.length) {
+    console.log("✅ All metadata written on-chain");
     writeMiscProgress("writeFGNFTMetadata", true);
   } else {
-    console.log(
-      `Process incomplete. Processed ${progress.completedBatches.length} of ${totalBatches} batches.`
-    );
-    console.log(`Run the script again to continue from where it left off.`);
+    console.log("⚠️  Metadata writing incomplete – re-run to continue");
   }
 }
 
 if (require.main === module) {
-  main().catch((error) => {
-    console.error("Error in main process:", error);
+  writeFGNFTMetadata().catch((err) => {
+    console.error("Fatal error in writeFGMetadata", err);
     process.exit(1);
   });
 }

@@ -50,8 +50,8 @@ const mumbaiVars: Constants = {
   installationDiamond: "0x663aeA831087487d2944ce44836F419A35Ee005A",
   tileDiamond: "0xDd8947D7F6705136e5A12971231D134E80DFC15d",
   ghstAddress: "0x20d0A1ce31f8e8A77b291f25c5fbED007Adde932",
-  fakeGotchiCards: "0x9E282FE4a0be6A0C4B9f7d9fEF10547da35c52EA",
-  fakeGotchiArt: "0x330088c3372f4F78cF023DF16E1e1564109191dc",
+  fakeGotchiCards: "0x139E8A05239778540dA798957A9Cc380F77192Dc",
+  fakeGotchiArt: "0xF62f629b7cBdef543B5d6a5E10c8061a88A443Cf",
 };
 
 export const baseVars: Constants = {
@@ -71,8 +71,8 @@ export const baseSepoliaVars: Constants = {
   installationDiamond: "",
   tileDiamond: "",
   ghstAddress: "0xe97f36a00058aa7dfc4e85d23532c3f70453a7ae",
-  fakeGotchiCards: "0x5bf14d25143e3b0a4966b16ac7010CbB96b04ef1",
-  fakeGotchiArt: "0x147cd59995E9F3925A883F81330577041f7AaC3E",
+  fakeGotchiCards: "0x139E8A05239778540dA798957A9Cc380F77192Dc",
+  fakeGotchiArt: "0xF62f629b7cBdef543B5d6a5E10c8061a88A443Cf",
   safeProxyFactory: "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2",
 };
 
