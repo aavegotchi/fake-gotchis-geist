@@ -102,7 +102,7 @@ contract FakeGotchisCardFacet is Modifiers {
         uint256 _id,
         uint256 _amount,
         bytes calldata _data
-    ) external {
+    ) external whenNotPaused {
         address sender = LibMeta.msgSender();
         require(sender == _from || s.operators[_from][sender] || sender == address(this), "FGCard: Not owner and not approved to transfer");
         _safeTransferFrom(_from, _to, _id, _amount, _data);
@@ -124,7 +124,7 @@ contract FakeGotchisCardFacet is Modifiers {
         uint256[] calldata _ids,
         uint256[] calldata _amounts,
         bytes calldata _data
-    ) external {
+    ) external whenNotPaused {
         address sender = LibMeta.msgSender();
         require(sender == _from || s.operators[_from][sender], "FGCard: Not owner and not approved to transfer");
         _safeBatchTransferFrom(_from, _to, _ids, _amounts, _data);
@@ -146,7 +146,7 @@ contract FakeGotchisCardFacet is Modifiers {
         uint256[] calldata _ids,
         uint256[] calldata _amounts,
         bytes calldata _data
-    ) external {
+    ) external whenNotPaused {
         address sender = LibMeta.msgSender();
         require(sender == _from || s.operators[_from][sender], "FGCard: Not owner and not approved to transfer");
         require((_to.length == _amounts.length) && (_ids.length == _amounts.length), "FGCard: Array length mismatch");
@@ -293,5 +293,12 @@ contract FakeGotchisCardFacet is Modifiers {
         bytes calldata /*_data*/
     ) external pure returns (bytes4) {
         return LibERC1155.ERC1155_ACCEPTED;
+    }
+
+    event DiamondPauseToggled(bool _paused);
+
+    function toggleDiamondPause() external onlyOwner {
+        s.diamondPaused = !s.diamondPaused;
+        emit DiamondPauseToggled(s.diamondPaused);
     }
 }

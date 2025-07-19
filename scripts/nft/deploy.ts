@@ -123,5 +123,15 @@ export async function deployNftDiamond(cardAddress: string) {
     );
   }
 
+  //pause fgNFT
+  const fakeGotchisNftFacet = await ethers.getContractAt(
+    "MetadataFacet",
+    diamond.address,
+    deployer
+  );
+  const txPause = await fakeGotchisNftFacet.toggleDiamondPause();
+  console.log("FAKE Gotchis NFT Diamond paused tx: ", txPause.hash);
+  await txPause.wait();
+
   return diamond.address;
 }

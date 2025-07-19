@@ -40,7 +40,7 @@ contract MetadataFacet is Modifiers {
     }
 
     ///@dev Enable an operator to publish on behalf of you
-    function togglePublishingOperator(address _operator, bool _whitelist) external {
+    function togglePublishingOperator(address _operator, bool _whitelist) external whenNotPaused {
         s.publishingOperators[LibMeta.msgSender()][_operator] = _whitelist;
     }
 
@@ -54,7 +54,7 @@ contract MetadataFacet is Modifiers {
         MetadataInput memory mData,
         uint256 series,
         address _publisher
-    ) external {
+    ) external whenNotPaused {
         require(LibMeta.msgSender() == _publisher || s.publishingOperators[_publisher][LibMeta.msgSender()] == true, "Metadata: Operator not set");
 
         _addMetadata(mData, series, LibMeta.msgSender(), _publisher);
@@ -209,7 +209,7 @@ contract MetadataFacet is Modifiers {
         return s.blocked[_address];
     }
 
-    function mint(uint256 _id) external {
+    function mint(uint256 _id) external whenNotPaused {
         Metadata memory mData = s.metadata[_id];
         require(mData.status != METADATA_STATUS_DECLINED, "Metadata: Declined");
         require(mData.status != METADATA_STATUS_PAUSED, "Metadata: Paused for review");
@@ -309,7 +309,7 @@ contract MetadataFacet is Modifiers {
         }
     }
 
-    function flag(uint256 _id) external {
+    function flag(uint256 _id) external whenNotPaused {
         validateMetadata(_id);
 
         address _sender = LibMeta.msgSender();
@@ -355,7 +355,7 @@ contract MetadataFacet is Modifiers {
         s.metadataIdCounter = _metadataIdCounter;
     }
 
-    function like(uint256 _id) external {
+    function like(uint256 _id) external whenNotPaused {
         validateMetadata(_id);
 
         address _sender = LibMeta.msgSender();
@@ -377,5 +377,12 @@ contract MetadataFacet is Modifiers {
         uint256[] calldata _startingTokenIds
     ) external onlyOwner {
         emit FixBurnedStats(_ids, _amounts, _startingTokenIds);
+    }
+
+    event DiamondPauseToggled(bool _paused);
+
+    function toggleDiamondPause() external onlyOwner {
+        s.diamondPaused = !s.diamondPaused;
+        emit DiamondPauseToggled(s.diamondPaused);
     }
 }

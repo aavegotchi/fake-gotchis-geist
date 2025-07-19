@@ -114,5 +114,15 @@ export async function deployCardDiamond() {
     );
   }
 
+  //pause fgCard
+  const fakeGotchisCardFacet = await ethers.getContractAt(
+    "FakeGotchisCardFacet",
+    diamond.address,
+    deployer
+  );
+  const txPause = await fakeGotchisCardFacet.toggleDiamondPause();
+  console.log("FAKE Gotchis Card Diamond paused tx: ", txPause.hash);
+  await txPause.wait();
+
   return diamond.address;
 }
