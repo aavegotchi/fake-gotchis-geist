@@ -381,8 +381,8 @@ contract MetadataFacet is Modifiers {
 
     event DiamondPauseToggled(bool _paused);
 
-    function toggleDiamondPause() external onlyOwner {
-        s.diamondPaused = !s.diamondPaused;
+    function toggleDiamondPause(bool _paused) external onlyOwner {
+        s.diamondPaused = _paused;
         emit DiamondPauseToggled(s.diamondPaused);
     }
 }

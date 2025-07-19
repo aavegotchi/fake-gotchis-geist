@@ -120,7 +120,7 @@ export async function deployCardDiamond() {
     diamond.address,
     deployer
   );
-  const txPause = await fakeGotchisCardFacet.toggleDiamondPause();
+  const txPause = await fakeGotchisCardFacet.toggleDiamondPause(true);
   console.log("FAKE Gotchis Card Diamond paused tx: ", txPause.hash);
   await txPause.wait();
 

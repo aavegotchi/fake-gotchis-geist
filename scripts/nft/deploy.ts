@@ -129,7 +129,7 @@ export async function deployNftDiamond(cardAddress: string) {
     diamond.address,
     deployer
   );
-  const txPause = await fakeGotchisNftFacet.toggleDiamondPause();
+  const txPause = await fakeGotchisNftFacet.toggleDiamondPause(true);
   console.log("FAKE Gotchis NFT Diamond paused tx: ", txPause.hash);
   await txPause.wait();
 
