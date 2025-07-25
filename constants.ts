@@ -55,7 +55,7 @@ const mumbaiVars: Constants = {
 };
 
 export const baseVars: Constants = {
-  aavegotchiDiamond: "0xA99c4B08201F2913Db8D28e71d020c4298F29dBF", //simple placeholder for testing
+  aavegotchiDiamond: "0xA99c4B08201F2913Db8D28e71d020c4298F29dBF",
   realmDiamond: "",
   installationDiamond: "",
   tileDiamond: "",
