@@ -11,10 +11,10 @@ import { Signer } from "@ethersproject/abstract-signer";
 import { IDiamondLoupe, IDiamondCut, OwnershipFacet } from "../typechain-types";
 import { LedgerSigner } from "@anders-t/ethers-ledger";
 import {
-  gasPrice,
   getRelayerSigner,
   getSelectors,
   getSighashes,
+  verifyContract,
 } from "../scripts/helperFunctions";
 
 import { HardhatRuntimeEnvironment } from "hardhat/types";
@@ -144,11 +144,13 @@ task(
         hre.network.name === "matic" ||
         hre.network.name === "mumbai" ||
         hre.network.name === "base" ||
-        hre.network.name === "baseSepolia"
+        hre.network.name === "baseSepolia" ||
+        hre.network.name === "base"
       ) {
         if (useLedger) {
           signer = new LedgerSigner(hre.ethers.provider);
         } else if (useRelayer) {
+          console.log("Using Relayer");
           signer = await getRelayerSigner(hre);
         } else {
           signer = (await hre.ethers.getSigners())[0];
@@ -167,10 +169,11 @@ task(
         console.log("facet:", facet);
         if (facet.facetName.length > 0) {
           const factory = (await hre.ethers.getContractFactory(
-            facet.facetName
+            facet.facetName,
+            signer
           )) as ContractFactory;
           const deployedFacet: Contract = await factory.deploy({
-            gasPrice: gasPrice,
+            //  gasPrice: gasPrice,
           });
           await deployedFacet.deployed();
           console.log(
@@ -180,6 +183,9 @@ task(
 
           //wait for 5 seconds
           await new Promise((resolve) => setTimeout(resolve, 5000));
+
+          //verify the contract
+          await verifyContract(deployedFacet.address, false);
 
           deployedFacets.push(deployedFacet);
 
@@ -277,8 +283,8 @@ task(
           const tx: ContractTransaction = await diamondCut.diamondCut(
             cut,
             initAddress ? initAddress : hre.ethers.constants.AddressZero,
-            initCalldata ? initCalldata : "0x",
-            { gasPrice: gasPrice }
+            initCalldata ? initCalldata : "0x"
+            //   { gasPrice: gasPrice }
           );
 
           const receipt: ContractReceipt = await tx.wait();

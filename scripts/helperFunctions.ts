@@ -83,8 +83,8 @@ const chainAddresses: NetworkAddresses = {
     ghstAddress: "0xe97f36a00058aa7dfc4e85d23532c3f70453a7ae",
   },
   8453: {
-    aavegotchiDiamond: "", // Base Mainnet
-    ghstAddress: "",
+    aavegotchiDiamond: "0xA99c4B08201F2913Db8D28e71d020c4298F29dBF", // Base Mainnet
+    ghstAddress: "0xcd2f22236dd9dfe2356d7c543161d4d260fd9bcb",
   },
   31337: {
     aavegotchiDiamond: "0x86e527A5863975d0141514D20248aD17B6BF92D0", //Placeholder for local
@@ -173,7 +173,8 @@ export function getDeployedDiamonds(chainId: number): DeployedDiamonds {
 export const xpRelayerAddress = "0xb6384935d68e9858f8385ebeed7db84fc93b1420";
 export const xpRelayerAddressBaseSepolia =
   "0x46c7064038C4821dDd1c27Ed9FC4b283a74AC6d2";
-export const xpRelayerAddressBase = "";
+export const xpRelayerAddressBase =
+  "0xf52398257A254D541F392667600901f710a006eD";
 
 export interface RelayerInfo {
   apiKey: string;
@@ -210,7 +211,7 @@ export async function getRelayerSigner(hre: HardhatRuntimeEnvironment) {
     }
     //we assume same defender for base mainnet
   } else if (hre.network.name === "matic" || hre.network.name === "base") {
-    console.log("USING MATIC");
+    console.log("USING", hre.network.name);
 
     const credentials: RelayerInfo = {
       apiKey: process.env.DEFENDER_APIKEY!,
@@ -219,8 +220,8 @@ export async function getRelayerSigner(hre: HardhatRuntimeEnvironment) {
 
     const provider = new DefenderRelayProvider(credentials);
     return new DefenderRelaySigner(credentials, provider, {
-      speed: "safeLow",
-      validForSeconds: 7200,
+      speed: "average",
+      validForSeconds: 200,
     });
   } else if (hre.network.name === "baseSepolia") {
     console.log("USING BASE SEPOLIA DEFENDER");
@@ -259,6 +260,8 @@ export async function verifyContract(
   }
 
   console.log(`Attempting to verify contract at ${address}...`);
+  console.log("Waiting 5 seconds before verifying...");
+  await new Promise((resolve) => setTimeout(resolve, 5000));
 
   try {
     const verifyArgs: any = {

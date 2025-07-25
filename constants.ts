@@ -55,14 +55,14 @@ const mumbaiVars: Constants = {
 };
 
 export const baseVars: Constants = {
-  aavegotchiDiamond: "0x74e2051A9Cd994F83f2d789448dCa4a3e879964c", //simple placeholder for testing
+  aavegotchiDiamond: "0xA99c4B08201F2913Db8D28e71d020c4298F29dBF", //simple placeholder for testing
   realmDiamond: "",
   installationDiamond: "",
   tileDiamond: "",
   safeProxyFactory: "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2",
-  ghstAddress: "",
-  fakeGotchiCards: "",
-  fakeGotchiArt: "",
+  ghstAddress: "0xcd2f22236dd9dfe2356d7c543161d4d260fd9bcb",
+  fakeGotchiCards: "0xe46B8902dAD841476d9Fee081F1d62aE317206A9",
+  fakeGotchiArt: "0xAb59CA4A16925b0a4BaC5026C94bEB20A29Df479",
 };
 
 export const baseSepoliaVars: Constants = {
@@ -71,8 +71,8 @@ export const baseSepoliaVars: Constants = {
   installationDiamond: "",
   tileDiamond: "",
   ghstAddress: "0xe97f36a00058aa7dfc4e85d23532c3f70453a7ae",
-  fakeGotchiCards: "0x139E8A05239778540dA798957A9Cc380F77192Dc",
-  fakeGotchiArt: "0xF62f629b7cBdef543B5d6a5E10c8061a88A443Cf",
+  fakeGotchiCards: "0x06c047e6400F58215D4e545adeC80CB5ED3cA206",
+  fakeGotchiArt: "0xc539C1Adba8530DF916945A97CBCc3C3529B2b7B",
   safeProxyFactory: "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2",
 };
 

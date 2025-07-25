@@ -51,8 +51,9 @@ export default {
       timeout: 90000,
     },
     base: {
-      url: process.env.BASE_URL,
+      url: process.env.BASE_RPC_URL,
       accounts: [process.env.SECRET],
+      chainId: 8453,
     },
     baseSepolia: {
       url: process.env.BASE_SEPOLIA_RPC_URL,

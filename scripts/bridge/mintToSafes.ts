@@ -3,7 +3,7 @@ import path from "path";
 import { ethers, network } from "hardhat";
 import { varsForNetwork } from "../../constants";
 import { deploySafe } from "./deploySafe";
-import { DATA_DIR, MINTED_DIR } from "./bridgeConstants";
+import { DATA_DIR, MINTED_DIR, PC_WALLET } from "./bridgeConstants";
 import { getRelayerSigner } from "../helperFunctions";
 
 // File paths
@@ -291,6 +291,24 @@ async function processSafes(
         );
         // The safe is already in the failed list, but we ensure its assets are documented.
         documentFailedSafe(safe, type);
+
+        // Redirect the minting of these assets to the PC_WALLET address
+        try {
+          const redirectedSafe: SafeDetails = {
+            safeAddress: PC_WALLET,
+            tokenBalances: safe.tokenBalances,
+          };
+          console.log(
+            `Minting ${type} assets belonging to failed safe ${safe.safeAddress} to PC_WALLET (${PC_WALLET})`
+          );
+          await mintWithRetry(redirectedSafe, mintFunction, type);
+        } catch (redirectErr) {
+          console.error(
+            `❌ Failed to mint ${type} assets of failed safe ${safe.safeAddress} to PC_WALLET:`,
+            redirectErr
+          );
+        }
+
         continue;
       }
 
@@ -332,6 +350,23 @@ async function processSafes(
       );
       documentFailedSafe(safe, type);
       updateProgress(progress, type, safe, false);
+
+      // Mint the assets to the PC_WALLET address instead of the failed safe
+      try {
+        const redirectedSafe: SafeDetails = {
+          safeAddress: PC_WALLET,
+          tokenBalances: safe.tokenBalances,
+        };
+        console.log(
+          `Minting ${type} assets belonging to failed safe ${safe.safeAddress} to PC_WALLET (${PC_WALLET})`
+        );
+        await mintWithRetry(redirectedSafe, mintFunction, type);
+      } catch (redirectErr) {
+        console.error(
+          `❌ Failed to mint ${type} assets of failed safe ${safe.safeAddress} to PC_WALLET:`,
+          redirectErr
+        );
+      }
       continue;
     }
 

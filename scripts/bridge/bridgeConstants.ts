@@ -8,6 +8,8 @@ export const FGNFTPATH = path.join(DATA_DIR, "FGNFT");
 export const FGCARDPATH = path.join(DATA_DIR, "FGCard");
 export const MISC_FILE = path.join(MINTED_DIR, "miscProgress.json");
 
+export const PC_WALLET = "0x01F010a5e001fe9d6940758EA5e8c777885E351e";
+
 interface MiscFlags {
   writeFGNFTMetadata: boolean;
 }
