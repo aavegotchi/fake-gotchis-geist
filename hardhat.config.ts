@@ -23,11 +23,10 @@ dotenv.config({ path: __dirname + "/.env" });
 // Go to https://buidler.dev/config/ to learn more
 export default {
   etherscan: {
-    apiKey: {
-      polygon: process.env.POLYGON_API_KEY,
-      baseSepolia: process.env.BASE_API_KEY,
-      // base: process.env.BASE_API_KEY,
-    },
+    apiKey: process.env.ETHERSCAN,
+  },
+  sourcify: {
+    enabled: true,
   },
   networks: {
     hardhat: {
