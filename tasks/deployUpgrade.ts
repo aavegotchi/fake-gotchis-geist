@@ -11,7 +11,7 @@ import { Signer } from "@ethersproject/abstract-signer";
 import { IDiamondLoupe, IDiamondCut, OwnershipFacet } from "../typechain-types";
 import { LedgerSigner } from "@anders-t/ethers-ledger";
 import {
-  getRelayerSigner,
+  // getRelayerSigner,
   getSelectors,
   getSighashes,
   verifyContract,
@@ -114,7 +114,7 @@ task(
       const diamondAddress: string = taskArgs.diamondAddress;
       const useMultisig = taskArgs.useMultisig;
       const useLedger = taskArgs.useLedger;
-      const useRelayer = taskArgs.useRelayer;
+      // const useRelayer = taskArgs.useRelayer;
       const initAddress = taskArgs.initAddress;
       const initCalldata = taskArgs.initCalldata;
 
@@ -148,13 +148,16 @@ task(
         hre.network.name === "base"
       ) {
         if (useLedger) {
-          signer = new LedgerSigner(hre.ethers.provider);
-        } else if (useRelayer) {
-          console.log("Using Relayer");
-          signer = await getRelayerSigner(hre);
+          signer = new LedgerSigner(hre.ethers.provider, "m/44'/60'/1'/0/0");
         } else {
           signer = (await hre.ethers.getSigners())[0];
         }
+        // } else if (useRelayer) {
+        //   console.log("Using Relayer");
+        //   // signer = await getRelayerSigner(hre);
+        // } else {
+        //   signer = (await hre.ethers.getSigners())[0];
+        // }
       } else {
         throw Error("Incorrect network selected");
       }

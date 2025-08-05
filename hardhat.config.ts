@@ -26,14 +26,15 @@ export default {
     apiKey: {
       polygon: process.env.POLYGON_API_KEY,
       baseSepolia: process.env.BASE_API_KEY,
-      base: process.env.BASE_API_KEY,
+      // base: process.env.BASE_API_KEY,
     },
   },
   networks: {
     hardhat: {
       forking: {
-        url: process.env.MATIC_URL,
+        url: process.env.BASE_RPC_URL,
         timeout: 12000000,
+        chainId: 8453,
       },
       timeout: 120000,
     },
