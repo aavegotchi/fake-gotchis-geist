@@ -1,13 +1,12 @@
 import { Contract } from "@ethersproject/contracts";
-import { OwnershipFacet } from "../typechain-types";
 import path from "path";
 import fs from "fs";
 import { network, run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import {
-  DefenderRelayProvider,
-  DefenderRelaySigner,
-} from "defender-relay-client/lib/ethers";
+// import {
+//   DefenderRelayProvider,
+//   DefenderRelaySigner,
+// } from "defender-relay-client/lib/ethers";
 
 export const gasPrice = 280000000000;
 
@@ -181,69 +180,69 @@ export interface RelayerInfo {
   apiSecret: string;
 }
 
-export async function getRelayerSigner(hre: HardhatRuntimeEnvironment) {
-  const testing = ["hardhat", "localhost"].includes(hre.network.name);
-  let xpRelayer;
-  if (
-    hre.network.config.chainId === 137 ||
-    hre.network.config.chainId === 8453
-  ) {
-    xpRelayer = xpRelayerAddress;
-  } else if (hre.network.config.chainId === 84532) {
-    xpRelayer = xpRelayerAddressBaseSepolia;
-  }
+// export async function getRelayerSigner(hre: HardhatRuntimeEnvironment) {
+//   const testing = ["hardhat", "localhost"].includes(hre.network.name);
+//   let xpRelayer;
+//   if (
+//     hre.network.config.chainId === 137 ||
+//     hre.network.config.chainId === 8453
+//   ) {
+//     xpRelayer = xpRelayerAddress;
+//   } else if (hre.network.config.chainId === 84532) {
+//     xpRelayer = xpRelayerAddressBaseSepolia;
+//   }
 
-  if (testing) {
-    if (hre.network.config.chainId !== 31337) {
-      console.log("Using Hardhat");
+//   if (testing) {
+//     if (hre.network.config.chainId !== 31337) {
+//       console.log("Using Hardhat");
 
-      await hre.network.provider.request({
-        method: "hardhat_impersonateAccount",
-        params: [xpRelayer],
-      });
-      await hre.network.provider.request({
-        method: "hardhat_setBalance",
-        params: [xpRelayerAddress, "0x100000000000000000000000"],
-      });
-      return await hre.ethers.provider.getSigner(xpRelayerAddress);
-    } else {
-      return (await hre.ethers.getSigners())[0];
-    }
-    //we assume same defender for base mainnet
-  } else if (hre.network.name === "matic" || hre.network.name === "base") {
-    console.log("USING", hre.network.name);
+//       await hre.network.provider.request({
+//         method: "hardhat_impersonateAccount",
+//         params: [xpRelayer],
+//       });
+//       await hre.network.provider.request({
+//         method: "hardhat_setBalance",
+//         params: [xpRelayerAddress, "0x100000000000000000000000"],
+//       });
+//       return await hre.ethers.provider.getSigner(xpRelayerAddress);
+//     } else {
+//       return (await hre.ethers.getSigners())[0];
+//     }
+//     //we assume same defender for base mainnet
+//   } else if (hre.network.name === "matic" || hre.network.name === "base") {
+//     console.log("USING", hre.network.name);
 
-    const credentials: RelayerInfo = {
-      apiKey: process.env.DEFENDER_APIKEY!,
-      apiSecret: process.env.DEFENDER_SECRET!,
-    };
+//     const credentials: RelayerInfo = {
+//       apiKey: process.env.DEFENDER_APIKEY!,
+//       apiSecret: process.env.DEFENDER_SECRET!,
+//     };
 
-    const provider = new DefenderRelayProvider(credentials);
-    return new DefenderRelaySigner(credentials, provider, {
-      speed: "average",
-      validForSeconds: 200,
-    });
-  } else if (hre.network.name === "baseSepolia") {
-    console.log("USING BASE SEPOLIA DEFENDER");
-    const credentials: RelayerInfo = {
-      apiKey: process.env.DEFENDER_APIKEY_BASESEPOLIA!,
-      apiSecret: process.env.DEFENDER_SECRET_BASESEPOLIA!,
-    };
+//     const provider = new DefenderRelayProvider(credentials);
+//     return new DefenderRelaySigner(credentials, provider, {
+//       speed: "average",
+//       validForSeconds: 200,
+//     });
+//   } else if (hre.network.name === "baseSepolia") {
+//     console.log("USING BASE SEPOLIA DEFENDER");
+//     const credentials: RelayerInfo = {
+//       apiKey: process.env.DEFENDER_APIKEY_BASESEPOLIA!,
+//       apiSecret: process.env.DEFENDER_SECRET_BASESEPOLIA!,
+//     };
 
-    const provider = new DefenderRelayProvider(credentials);
-    return new DefenderRelaySigner(credentials, provider, {
-      speed: "safeLow",
-      validForSeconds: 180,
-    });
-  } else if (
-    ["tenderly", "polter", "amoy", "geist"].includes(hre.network.name)
-  ) {
-    //impersonate
-    return (await hre.ethers.getSigners())[0];
-  } else {
-    throw Error("Incorrect network selected");
-  }
-}
+//     const provider = new DefenderRelayProvider(credentials);
+//     return new DefenderRelaySigner(credentials, provider, {
+//       speed: "safeLow",
+//       validForSeconds: 180,
+//     });
+//   } else if (
+//     ["tenderly", "polter", "amoy", "geist"].includes(hre.network.name)
+//   ) {
+//     //impersonate
+//     return (await hre.ethers.getSigners())[0];
+//   } else {
+//     throw Error("Incorrect network selected");
+//   }
+// }
 
 export async function verifyContract(
   address: string,

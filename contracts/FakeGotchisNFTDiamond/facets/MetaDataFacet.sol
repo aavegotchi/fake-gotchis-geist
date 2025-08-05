@@ -149,7 +149,7 @@ contract MetadataFacet is Modifiers {
 
     function _writeMetadataBridged(uint256 _metadataId, Metadata memory _mData) internal {
         // write to storage directly
-        s.metadataIdCounter++;
+        // s.metadataIdCounter++;
         s.metadata[_metadataId] = Metadata({
             name: _mData.name,
             description: _mData.description,
@@ -170,9 +170,11 @@ contract MetadataFacet is Modifiers {
             flagCount: _mData.flagCount,
             likeCount: _mData.likeCount
         });
-        s.ownerMetadataIdIndexes[_mData.publisher][_metadataId] = s.ownerMetadataIds[_mData.publisher].length;
-        s.ownerMetadataIds[_mData.publisher].push(_metadataId);
-        s.metadataIds.push(_metadataId);
+        if (_metadataId > 510) {
+            s.ownerMetadataIdIndexes[_mData.publisher][_metadataId] = s.ownerMetadataIds[_mData.publisher].length;
+            s.ownerMetadataIds[_mData.publisher].push(_metadataId);
+            s.metadataIds.push(_metadataId);
+        }
         s.metadataOwner[_metadataId] = _mData.publisher;
 
         // emit event with metadata
