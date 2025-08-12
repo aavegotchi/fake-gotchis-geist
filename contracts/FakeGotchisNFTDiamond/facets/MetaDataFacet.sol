@@ -387,4 +387,12 @@ contract MetadataFacet is Modifiers {
         s.diamondPaused = _paused;
         emit DiamondPauseToggled(s.diamondPaused);
     }
+
+    function getCurrentTokenId() external view returns (uint256) {
+        return s.tokenIdCounter;
+    }
+
+    function setCurrentTokenId(uint256 _tokenIdCounter) external onlyOwner {
+        s.tokenIdCounter = _tokenIdCounter;
+    }
 }
