@@ -3,6 +3,7 @@ import path from "path";
 import fs from "fs";
 import { network, run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
+import { LedgerSigner } from "@anders-t/ethers-ledger";
 // import {
 //   DefenderRelayProvider,
 //   DefenderRelaySigner,
@@ -300,4 +301,9 @@ export async function verifyContract(
       );
     }
   }
+}
+
+export async function getLedgerSigner(ethers: any) {
+  console.log("Getting ledger signer");
+  return new LedgerSigner(ethers.provider, "m/44'/60'/1'/0/0");
 }
