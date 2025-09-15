@@ -6,32 +6,54 @@ import {
   FacetsAndAddSelectors,
 } from "../../../tasks/deployUpgrade";
 import { diamondOwner } from "../../helperFunctions";
-import { mine } from "@nomicfoundation/hardhat-network-helpers";
+export const FakeGotchiNFTBalances = `tuple(uint256 tokenId, uint256 balance)`;
+export const MintBatchinput = `tuple(
+     address ownerAddress,
+     ${FakeGotchiNFTBalances}[] tokenBalances,
+     )`;
+
+export const Metadata = `(
+        address,
+            uint16[2],
+            uint16,
+            uint32,
+            uint32,
+            address,
+            uint40,
+            uint8,
+            bool,
+            string,
+            string,
+            string,
+            string,
+            string,
+            string,
+            string,
+            string,
+            string
+        )`;
 
 export async function upgrade() {
   const facets: FacetsAndAddSelectors[] = [
     {
       facetName: "MetadataFacet",
-      addSelectors: [],
+      addSelectors: [
+        `function mintBatch((address,(uint256,uint256)[])[])`,
+        `function batchWriteMetadata(uint256[],${Metadata}[])`,
+      ],
       removeSelectors: [],
     },
   ];
-
-  // await mine();
-
   const joined = convertFacetAndSelectorsToString(facets);
 
   const c = await varsForNetwork(ethers);
-
-  console.log("c:", c);
 
   const args: DeployUpgradeTaskArgs = {
     diamondUpgrader: await diamondOwner(c.fakeGotchiArt, ethers),
     diamondAddress: c.fakeGotchiArt,
     facetsAndAddSelectors: joined,
-    useLedger: true,
+    useLedger: false,
     useMultisig: false,
-    useRelayer: false,
   };
 
   await run("deployUpgrade", args);

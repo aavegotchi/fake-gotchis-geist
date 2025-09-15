@@ -11,9 +11,10 @@ import { Signer } from "@ethersproject/abstract-signer";
 import { IDiamondLoupe, IDiamondCut, OwnershipFacet } from "../typechain-types";
 import { LedgerSigner } from "@anders-t/ethers-ledger";
 import {
-  gasPrice,
+  // getRelayerSigner,
   getSelectors,
   getSighashes,
+  verifyContract,
 } from "../scripts/helperFunctions";
 
 import { HardhatRuntimeEnvironment } from "hardhat/types";
@@ -34,6 +35,7 @@ export interface DeployUpgradeTaskArgs {
   facetsAndAddSelectors: string;
   useMultisig: boolean;
   useLedger: boolean;
+  useRelayer: boolean;
   initAddress?: string;
   initCalldata?: string;
   rawSigs?: boolean;
@@ -100,6 +102,7 @@ task(
     "Set to true if multisig should be used for deploying"
   )
   .addFlag("useLedger", "Set to true if Ledger should be used for signing")
+  .addFlag("useRelayer", "Set to true if Relayer should be used for signing")
   // .addFlag("verifyFacets","Set to true if facets should be verified after deployment")
 
   .setAction(
@@ -111,6 +114,7 @@ task(
       const diamondAddress: string = taskArgs.diamondAddress;
       const useMultisig = taskArgs.useMultisig;
       const useLedger = taskArgs.useLedger;
+      // const useRelayer = taskArgs.useRelayer;
       const initAddress = taskArgs.initAddress;
       const initCalldata = taskArgs.initCalldata;
 
@@ -138,11 +142,22 @@ task(
         signer = await hre.ethers.getSigner(owner);
       } else if (
         hre.network.name === "matic" ||
-        hre.network.name === "mumbai"
+        hre.network.name === "mumbai" ||
+        hre.network.name === "base" ||
+        hre.network.name === "baseSepolia" ||
+        hre.network.name === "base"
       ) {
         if (useLedger) {
-          signer = new LedgerSigner(hre.ethers.provider);
-        } else signer = (await hre.ethers.getSigners())[0];
+          signer = new LedgerSigner(hre.ethers.provider, "m/44'/60'/1'/0/0");
+        } else {
+          signer = (await hre.ethers.getSigners())[0];
+        }
+        // } else if (useRelayer) {
+        //   console.log("Using Relayer");
+        //   // signer = await getRelayerSigner(hre);
+        // } else {
+        //   signer = (await hre.ethers.getSigners())[0];
+        // }
       } else {
         throw Error("Incorrect network selected");
       }
@@ -157,16 +172,24 @@ task(
         console.log("facet:", facet);
         if (facet.facetName.length > 0) {
           const factory = (await hre.ethers.getContractFactory(
-            facet.facetName
+            facet.facetName,
+            signer
           )) as ContractFactory;
           const deployedFacet: Contract = await factory.deploy({
-            gasPrice: gasPrice,
+            //  gasPrice: gasPrice,
           });
           await deployedFacet.deployed();
           console.log(
             `Deployed Facet Address for ${facet.facetName}:`,
             deployedFacet.address
           );
+
+          //wait for 5 seconds
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+
+          //verify the contract
+          await verifyContract(deployedFacet.address, false);
+
           deployedFacets.push(deployedFacet);
 
           const newSelectors = getSighashes(facet.addSelectors, hre.ethers);
@@ -263,8 +286,8 @@ task(
           const tx: ContractTransaction = await diamondCut.diamondCut(
             cut,
             initAddress ? initAddress : hre.ethers.constants.AddressZero,
-            initCalldata ? initCalldata : "0x",
-            { gasPrice: gasPrice }
+            initCalldata ? initCalldata : "0x"
+            //   { gasPrice: gasPrice }
           );
 
           const receipt: ContractReceipt = await tx.wait();

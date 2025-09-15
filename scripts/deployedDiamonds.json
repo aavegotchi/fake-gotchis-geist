@@ -1,0 +1,14 @@
+{
+  "8453": {
+    "fakeGotchisNFT": "0xAb59CA4A16925b0a4BaC5026C94bEB20A29Df479",
+    "fakeGotchisCard": "0xe46B8902dAD841476d9Fee081F1d62aE317206A9"
+  },
+  "84532": {
+    "fakeGotchisNFT": "0xc539C1Adba8530DF916945A97CBCc3C3529B2b7B",
+    "fakeGotchisCard": "0x06c047e6400F58215D4e545adeC80CB5ED3cA206"
+  },
+  "undefined": {
+    "fakeGotchisNFT": "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6",
+    "fakeGotchisCard": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
+  }
+}

@@ -2,7 +2,7 @@
 
 import "@nomiclabs/hardhat-waffle";
 import "@nomiclabs/hardhat-ethers";
-import "@nomiclabs/hardhat-etherscan";
+import "@nomicfoundation/hardhat-verify";
 import "hardhat-contract-sizer";
 import "solidity-coverage";
 import "./tasks/generateDiamondABI_erc721.js";
@@ -23,18 +23,19 @@ dotenv.config({ path: __dirname + "/.env" });
 // Go to https://buidler.dev/config/ to learn more
 export default {
   etherscan: {
-    apiKey: process.env.POLYGON_API_KEY,
+    apiKey: process.env.ETHERSCAN,
+  },
+  sourcify: {
+    enabled: true,
   },
   networks: {
     hardhat: {
       forking: {
-        url: process.env.MATIC_URL,
+        url: process.env.BASE_RPC_URL,
         timeout: 12000000,
+        chainId: 8453,
       },
-      chainId: 137,
-      blockGasLimit: 20000000,
       timeout: 120000,
-      gas: "auto",
     },
     localhost: {
       timeout: 16000000,
@@ -49,15 +50,15 @@ export default {
       // gasLimit: 2000000,
       timeout: 90000,
     },
-    mumbai: {
-      url: process.env.MUMBAI_URL,
+    base: {
+      url: process.env.BASE_RPC_URL,
       accounts: [process.env.SECRET],
-      // blockGasLimit: 20000000,
-      // gasPrice: 1000000000,
-      maxFeePerGas: BigNumber.from("80").mul(1e9),
-      maxPriorityFeePerGas: BigNumber.from("50").mul(1e9),
-      gasLimit: 2000000,
-      timeout: 90000,
+      chainId: 8453,
+    },
+    baseSepolia: {
+      url: process.env.BASE_SEPOLIA_RPC_URL,
+      accounts: [process.env.SECRET],
+      chainId: 84532,
     },
   },
   gasReporter: {

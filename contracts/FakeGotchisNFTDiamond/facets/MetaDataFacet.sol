@@ -40,7 +40,7 @@ contract MetadataFacet is Modifiers {
     }
 
     ///@dev Enable an operator to publish on behalf of you
-    function togglePublishingOperator(address _operator, bool _whitelist) external {
+    function togglePublishingOperator(address _operator, bool _whitelist) external whenNotPaused {
         s.publishingOperators[LibMeta.msgSender()][_operator] = _whitelist;
     }
 
@@ -54,7 +54,7 @@ contract MetadataFacet is Modifiers {
         MetadataInput memory mData,
         uint256 series,
         address _publisher
-    ) external {
+    ) external whenNotPaused {
         require(LibMeta.msgSender() == _publisher || s.publishingOperators[_publisher][LibMeta.msgSender()] == true, "Metadata: Operator not set");
 
         _addMetadata(mData, series, LibMeta.msgSender(), _publisher);
@@ -116,6 +116,71 @@ contract MetadataFacet is Modifiers {
         emit MetadataActionLog(_metadataId, s.metadata[_metadataId]);
     }
 
+    function _writeMetadata(uint256 _metadataId, Metadata memory _mData) internal {
+        // write to storage directly
+        s.metadata[_metadataId] = Metadata({
+            name: _mData.name,
+            description: _mData.description,
+            externalLink: _mData.externalLink,
+            editions: _mData.editions,
+            publisher: _mData.publisher,
+            publisherName: _mData.publisherName,
+            artist: _mData.artist,
+            artistName: _mData.artistName,
+            royalty: _mData.royalty,
+            fileHash: _mData.fileHash,
+            fileType: _mData.fileType,
+            thumbnailHash: _mData.thumbnailHash,
+            thumbnailType: _mData.thumbnailType,
+            minted: _mData.minted,
+            createdAt: _mData.createdAt,
+            status: _mData.status,
+            flagCount: _mData.flagCount,
+            likeCount: _mData.likeCount
+        });
+        s.ownerMetadataIdIndexes[_mData.publisher][_metadataId] = s.ownerMetadataIds[_mData.publisher].length;
+        s.ownerMetadataIds[_mData.publisher].push(_metadataId);
+        s.metadataIds.push(_metadataId);
+        s.metadataOwner[_metadataId] = _mData.publisher;
+
+        // emit event with metadata
+        emit MetadataActionLog(_metadataId, s.metadata[_metadataId]);
+    }
+
+    function _writeMetadataBridged(uint256 _metadataId, Metadata memory _mData) internal {
+        // write to storage directly
+        // s.metadataIdCounter++;
+        s.metadata[_metadataId] = Metadata({
+            name: _mData.name,
+            description: _mData.description,
+            externalLink: _mData.externalLink,
+            editions: _mData.editions,
+            publisher: _mData.publisher,
+            publisherName: _mData.publisherName,
+            artist: _mData.artist,
+            artistName: _mData.artistName,
+            royalty: _mData.royalty,
+            fileHash: _mData.fileHash,
+            fileType: _mData.fileType,
+            thumbnailHash: _mData.thumbnailHash,
+            thumbnailType: _mData.thumbnailType,
+            minted: _mData.minted,
+            createdAt: _mData.createdAt,
+            status: _mData.status,
+            flagCount: _mData.flagCount,
+            likeCount: _mData.likeCount
+        });
+        if (_metadataId > 510) {
+            s.ownerMetadataIdIndexes[_mData.publisher][_metadataId] = s.ownerMetadataIds[_mData.publisher].length;
+            s.ownerMetadataIds[_mData.publisher].push(_metadataId);
+            s.metadataIds.push(_metadataId);
+        }
+        s.metadataOwner[_metadataId] = _mData.publisher;
+
+        // emit event with metadata
+        emit MetadataActionLog(_metadataId, s.metadata[_metadataId]);
+    }
+
     function declineMetadata(uint256 _id, bool isBadFaith) external onlyOwner {
         validateMetadata(_id);
         require(s.metadata[_id].status != METADATA_STATUS_APPROVED, "Metadata: Already approved");
@@ -146,7 +211,7 @@ contract MetadataFacet is Modifiers {
         return s.blocked[_address];
     }
 
-    function mint(uint256 _id) external {
+    function mint(uint256 _id) external whenNotPaused {
         Metadata memory mData = s.metadata[_id];
         require(mData.status != METADATA_STATUS_DECLINED, "Metadata: Declined");
         require(mData.status != METADATA_STATUS_PAUSED, "Metadata: Paused for review");
@@ -162,6 +227,37 @@ contract MetadataFacet is Modifiers {
 
         LibERC721.safeBatchMint(mData.publisher, _id, mData.editions);
         s.metadata[_id].minted = true;
+    }
+
+    struct MintBatchInput {
+        address ownerAddress;
+        FakeGotchiNFTBalances[] tokenBalances;
+    }
+
+    struct FakeGotchiNFTBalances {
+        uint256 tokenId;
+        uint256 balance;
+        uint256 metadataId;
+    }
+
+    function mintBatch(MintBatchInput[] calldata _mintData) external onlyOwner {
+        for (uint256 i; i < _mintData.length; i++) {
+            for (uint256 j; j < _mintData[i].tokenBalances.length; j++) {
+                LibERC721.safeBatchMintBridged(
+                    _mintData[i].ownerAddress,
+                    _mintData[i].tokenBalances[j].tokenId,
+                    _mintData[i].tokenBalances[j].balance,
+                    _mintData[i].tokenBalances[j].metadataId
+                );
+            }
+        }
+    }
+
+    function batchWriteMetadata(uint256[] calldata _ids, Metadata[] calldata _mData) external onlyOwner {
+        require(_ids.length == _mData.length, "Metadata: Lengths of ids and metadata must be equal");
+        for (uint256 i; i < _ids.length; i++) {
+            _writeMetadataBridged(_ids[i], _mData[i]);
+        }
     }
 
     function verifyMetadata(MetadataInput memory mData) internal pure {
@@ -215,7 +311,7 @@ contract MetadataFacet is Modifiers {
         }
     }
 
-    function flag(uint256 _id) external {
+    function flag(uint256 _id) external whenNotPaused {
         validateMetadata(_id);
 
         address _sender = LibMeta.msgSender();
@@ -253,7 +349,15 @@ contract MetadataFacet is Modifiers {
         emit ReviewPass(_id, msg.sender);
     }
 
-    function like(uint256 _id) external {
+    function getMetadataIdCounter() external view returns (uint256) {
+        return s.metadataIdCounter;
+    }
+
+    function setMetadataIdCounter(uint256 _metadataIdCounter) external onlyOwner {
+        s.metadataIdCounter = _metadataIdCounter;
+    }
+
+    function like(uint256 _id) external whenNotPaused {
         validateMetadata(_id);
 
         address _sender = LibMeta.msgSender();
@@ -265,5 +369,30 @@ contract MetadataFacet is Modifiers {
         s.metadataLiked[_id][_sender] = true;
 
         emit MetadataLike(_id, _sender);
+    }
+
+    event FixBurnedStats(uint256[] metadataIds, uint256[] burnedCounts, uint256[] startingTokenIds);
+
+    function emitBurnedAmounts(
+        uint256[] calldata _ids,
+        uint256[] calldata _amounts,
+        uint256[] calldata _startingTokenIds
+    ) external onlyOwner {
+        emit FixBurnedStats(_ids, _amounts, _startingTokenIds);
+    }
+
+    event DiamondPauseToggled(bool _paused);
+
+    function toggleDiamondPause(bool _paused) external onlyOwner {
+        s.diamondPaused = _paused;
+        emit DiamondPauseToggled(s.diamondPaused);
+    }
+
+    function getCurrentTokenId() external view returns (uint256) {
+        return s.tokenIdCounter;
+    }
+
+    function setCurrentTokenId(uint256 _tokenIdCounter) external onlyOwner {
+        s.tokenIdCounter = _tokenIdCounter;
     }
 }

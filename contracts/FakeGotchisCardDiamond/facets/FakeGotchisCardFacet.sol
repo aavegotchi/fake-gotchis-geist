@@ -36,6 +36,23 @@ contract FakeGotchisCardFacet is Modifiers {
         emit NewSeriesStarted(newCardId, _amount);
     }
 
+    struct TokenBalance {
+        uint256 tokenId;
+        uint256 balance;
+    }
+
+    struct MintData {
+        address ownerAddress;
+        TokenBalance tokenBalances;
+    }
+
+    function massMint(MintData[] calldata _mintData) external onlyOwner {
+        require(s.nextCardId == 0, "can only mass-mint with first series");
+        for (uint256 i; i < _mintData.length; i++) {
+            LibERC1155._mint(_mintData[i].ownerAddress, 0, _mintData[i].tokenBalances.balance, new bytes(0));
+        }
+    }
+
     /**
      * @notice Query if an address is an authorized operator for another address
      * @param _owner The address that owns the NFTs
@@ -85,7 +102,7 @@ contract FakeGotchisCardFacet is Modifiers {
         uint256 _id,
         uint256 _amount,
         bytes calldata _data
-    ) external {
+    ) external whenNotPaused {
         address sender = LibMeta.msgSender();
         require(sender == _from || s.operators[_from][sender] || sender == address(this), "FGCard: Not owner and not approved to transfer");
         _safeTransferFrom(_from, _to, _id, _amount, _data);
@@ -107,7 +124,7 @@ contract FakeGotchisCardFacet is Modifiers {
         uint256[] calldata _ids,
         uint256[] calldata _amounts,
         bytes calldata _data
-    ) external {
+    ) external whenNotPaused {
         address sender = LibMeta.msgSender();
         require(sender == _from || s.operators[_from][sender], "FGCard: Not owner and not approved to transfer");
         _safeBatchTransferFrom(_from, _to, _ids, _amounts, _data);
@@ -129,7 +146,7 @@ contract FakeGotchisCardFacet is Modifiers {
         uint256[] calldata _ids,
         uint256[] calldata _amounts,
         bytes calldata _data
-    ) external {
+    ) external whenNotPaused {
         address sender = LibMeta.msgSender();
         require(sender == _from || s.operators[_from][sender], "FGCard: Not owner and not approved to transfer");
         require((_to.length == _amounts.length) && (_ids.length == _amounts.length), "FGCard: Array length mismatch");
@@ -276,5 +293,12 @@ contract FakeGotchisCardFacet is Modifiers {
         bytes calldata /*_data*/
     ) external pure returns (bytes4) {
         return LibERC1155.ERC1155_ACCEPTED;
+    }
+
+    event DiamondPauseToggled(bool _paused);
+
+    function toggleDiamondPause(bool _paused) external onlyOwner {
+        s.diamondPaused = _paused;
+        emit DiamondPauseToggled(_paused);
     }
 }

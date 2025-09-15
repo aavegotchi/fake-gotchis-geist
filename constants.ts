@@ -1,3 +1,4 @@
+import { ethers } from "ethers";
 import { HardhatEthersHelpers } from "hardhat/types";
 
 export interface Constants {
@@ -8,6 +9,7 @@ export interface Constants {
   ghstAddress: string;
   fakeGotchiCards: string;
   fakeGotchiArt: string;
+  safeProxyFactory?: string;
 }
 
 interface NetworkToConstants {
@@ -22,7 +24,8 @@ export interface Domain {
 }
 
 function varsByChainId(chainId: number) {
-  if ([137, 80001].includes(chainId)) return networkToVars[chainId];
+  if ([137, 80001, 84532, 8453, 31337].includes(chainId))
+    return networkToVars[chainId];
   else return networkToVars[137];
 }
 
@@ -38,6 +41,7 @@ export const maticVars: Constants = {
   ghstAddress: "0x385eeac5cb85a38a9a07a70c73e0a3271cfb54a7",
   fakeGotchiCards: "0x9f6BcC63e86D44c46e85564E9383E650dc0b56D7",
   fakeGotchiArt: "0xA4E3513c98b30d4D7cc578d2C328Bd550725D1D0",
+  safeProxyFactory: "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2",
 };
 
 const mumbaiVars: Constants = {
@@ -46,14 +50,50 @@ const mumbaiVars: Constants = {
   installationDiamond: "0x663aeA831087487d2944ce44836F419A35Ee005A",
   tileDiamond: "0xDd8947D7F6705136e5A12971231D134E80DFC15d",
   ghstAddress: "0x20d0A1ce31f8e8A77b291f25c5fbED007Adde932",
-  fakeGotchiCards: "0x9E282FE4a0be6A0C4B9f7d9fEF10547da35c52EA",
-  fakeGotchiArt: "0x330088c3372f4F78cF023DF16E1e1564109191dc",
+  fakeGotchiCards: "0x139E8A05239778540dA798957A9Cc380F77192Dc",
+  fakeGotchiArt: "0xF62f629b7cBdef543B5d6a5E10c8061a88A443Cf",
+};
+
+export const baseVars: Constants = {
+  aavegotchiDiamond: "0xA99c4B08201F2913Db8D28e71d020c4298F29dBF",
+  realmDiamond: "",
+  installationDiamond: "",
+  tileDiamond: "",
+  safeProxyFactory: "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2",
+  ghstAddress: "0xcd2f22236dd9dfe2356d7c543161d4d260fd9bcb",
+  fakeGotchiCards: "0xe46B8902dAD841476d9Fee081F1d62aE317206A9",
+  fakeGotchiArt: "0xAb59CA4A16925b0a4BaC5026C94bEB20A29Df479",
+};
+
+export const baseSepoliaVars: Constants = {
+  aavegotchiDiamond: "0x86e527A5863975d0141514D20248aD17B6BF92D0",
+  realmDiamond: "",
+  installationDiamond: "",
+  tileDiamond: "",
+  ghstAddress: "0xe97f36a00058aa7dfc4e85d23532c3f70453a7ae",
+  fakeGotchiCards: "0x06c047e6400F58215D4e545adeC80CB5ED3cA206",
+  fakeGotchiArt: "0xc539C1Adba8530DF916945A97CBCc3C3529B2b7B",
+  safeProxyFactory: "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2",
+};
+
+export const localVars: Constants = {
+  aavegotchiDiamond: "0x86e527A5863975d0141514D20248aD17B6BF92D0",
+  realmDiamond: "",
+  installationDiamond: "",
+  tileDiamond: "",
+  ghstAddress: "0xe97f36a00058aa7dfc4e85d23532c3f70453a7ae",
+  fakeGotchiCards: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+  fakeGotchiArt: "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6",
+  safeProxyFactory: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
 };
 
 const networkToVars: NetworkToConstants = {
   137: maticVars,
   80001: mumbaiVars,
   100: maticVars, //update
+  84532: baseSepoliaVars,
+  8453: baseVars,
+  31337: localVars,
 };
 
 export const gasPrice = 75000000000;
@@ -96,3 +136,20 @@ export const PERMIT_TYPES = {
     { name: "deadline", type: "uint256" },
   ],
 };
+
+export function baseSepoliaProvider() {
+  const url = process.env.BASE_SEPOLIA_RPC_URL;
+  if (!url) {
+    throw new Error("BASE_SEPOLIA_RPC_URL not found in environment variables");
+  }
+  return new ethers.providers.JsonRpcProvider(url);
+}
+
+export function baseProvider() {
+  const url = process.env.BASE_RPC_URL;
+  if (!url) {
+    throw new Error("BASE_RPC_URL not found in environment variables");
+  }
+  console.log("Using Base URL:", url);
+  return new ethers.providers.JsonRpcProvider(url);
+}

@@ -6,13 +6,17 @@ import {
   FacetsAndAddSelectors,
 } from "../../../tasks/deployUpgrade";
 import { diamondOwner } from "../../helperFunctions";
-import { mine } from "@nomicfoundation/hardhat-network-helpers";
+import { MetadataFacet__factory } from "../../../typechain-types";
+import { MetadataFacetInterface } from "../../../typechain-types/contracts/FakeGotchisNFTDiamond/facets/MetaDataFacet.sol/MetadataFacet";
 
 export async function upgrade() {
   const facets: FacetsAndAddSelectors[] = [
     {
       facetName: "MetadataFacet",
-      addSelectors: [],
+      addSelectors: [
+        `function setCurrentTokenId(uint256 _tokenIdCounter) external `,
+        `function getCurrentTokenId() external view returns (uint256)`,
+      ],
       removeSelectors: [],
     },
   ];
@@ -23,7 +27,11 @@ export async function upgrade() {
 
   const c = await varsForNetwork(ethers);
 
-  console.log("c:", c);
+  // console.log("c:", c);
+  let iface: MetadataFacetInterface = new ethers.utils.Interface(
+    MetadataFacet__factory.abi
+  ) as MetadataFacetInterface;
+  const calldata = iface.encodeFunctionData("setCurrentTokenId", [22788]);
 
   const args: DeployUpgradeTaskArgs = {
     diamondUpgrader: await diamondOwner(c.fakeGotchiArt, ethers),
@@ -32,6 +40,8 @@ export async function upgrade() {
     useLedger: true,
     useMultisig: false,
     useRelayer: false,
+    initCalldata: calldata,
+    initAddress: c.fakeGotchiArt,
   };
 
   await run("deployUpgrade", args);
